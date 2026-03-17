@@ -1,0 +1,644 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+
+/* ════════════════════════════════════════════
+   PROGRAM DEFINITION
+   ════════════════════════════════════════════ */
+
+const PROGRAM = {
+  mon: {
+    label: "MON", title: "Heavy Squat · Light Deadlift", exercises: [
+      { id: "squat_h", name: "Barbell Squat", heavy: true, sets: 4, reps: "5-6", startLbs: 85, note: "Heavy. Deload 10% if form breaks." },
+      { id: "rdl_l", name: "DB Romanian Deadlift", heavy: false, sets: 3, reps: "8-10", startLbs: 45, note: "Light. Tempo 3/0/3/0. Hip hinge." },
+      { id: "leg_press", name: "Leg Press", heavy: false, sets: 3, reps: "8-10", startLbs: 180, note: "Foot placement mid-high." },
+      { id: "calf_raise", name: "Standing Calf Raise", heavy: false, sets: 4, reps: "12-15", startLbs: 100, note: "Full ROM, pause at top." },
+      { id: "plank_m", name: "Weighted Plank", heavy: false, sets: 3, reps: "30-45s", startLbs: 0, note: "Add plate when able." },
+    ],
+    rehab: [
+      { id: "rb_iso_flex", name: "Isometric Elbow Flexion Hold", sets: 3, reps: "30-45s", note: "Bicep rehab · Neutral grip · Start 5 lbs" },
+      { id: "rb_iso_sup", name: "Isometric Supination Hold", sets: 3, reps: "30s", note: "Bicep rehab · Band or light DB" },
+    ]
+  },
+  wed: {
+    label: "WED", title: "Heavy DB Press · Light Push", exercises: [
+      { id: "db_press_h", name: "DB Press (Flat)", heavy: true, sets: 3, reps: "5-6", startLbs: 50, note: "Heavy. Bench substitute. Retract scapulae." },
+      { id: "incline_l", name: "Incline DB Press", heavy: false, sets: 3, reps: "8-10", startLbs: 30, note: "Light. Tempo 3/0/3/0. 30° incline." },
+      { id: "tri_push_l", name: "Tricep Pushdown", heavy: false, sets: 3, reps: "10-12", startLbs: 40, note: "Light. Tempo 3/0/3/0. Rope." },
+      { id: "lat_raise", name: "DB Lateral Raise", heavy: false, sets: 3, reps: "12-15", startLbs: 15, note: "Controlled tempo." },
+      { id: "cable_fly", name: "Cable Fly", heavy: false, sets: 3, reps: "10-12", startLbs: 25, note: "Slight forward lean." },
+    ],
+    rehab: [
+      { id: "rs_band", name: "Band Pull-Apart", sets: 3, reps: "15-20", note: "Shoulder rehab · Thumbs up · Scapular retraction" },
+      { id: "rs_ext_rot", name: "Sidelying External Rotation", sets: 3, reps: "15", note: "Shoulder rehab · 2-5 lb DB · Elbow pinned" },
+    ]
+  },
+  fri: {
+    label: "FRI", title: "Heavy Deadlift · Light Squat", exercises: [
+      { id: "deadlift_h", name: "Barbell Deadlift", heavy: true, sets: 3, reps: "5-6", startLbs: 135, note: "Heavy. Mixed grip or straps." },
+      { id: "squat_l", name: "Barbell Squat", heavy: false, sets: 3, reps: "8-10", startLbs: 60, note: "Light. Tempo 3/0/3/0. Pattern work." },
+      { id: "leg_curl", name: "Lying Leg Curl", heavy: false, sets: 3, reps: "10-12", startLbs: 50, note: "Slow eccentric 3s." },
+      { id: "hip_thrust", name: "Barbell Hip Thrust", heavy: false, sets: 3, reps: "8-10", startLbs: 95, note: "Pause at top." },
+      { id: "hang_knee", name: "Hanging Knee Raise (Straps)", heavy: false, sets: 3, reps: "10-15", startLbs: 0, note: "Ab straps — no bicep load." },
+    ],
+    rehab: [
+      { id: "rb_iso_flex2", name: "Isometric Elbow Flexion Hold", sets: 3, reps: "30-45s", note: "Bicep rehab · Neutral grip" },
+      { id: "rb_iso_sup2", name: "Isometric Supination Hold", sets: 3, reps: "30s", note: "Bicep rehab" },
+    ]
+  },
+  sat: {
+    label: "SAT", title: "Heavy Incline · Light DB Press · Pull + Rehab", exercises: [
+      { id: "incline_h", name: "Incline DB Press", heavy: true, sets: 3, reps: "6-8", startLbs: 40, note: "Heavy. 30° incline." },
+      { id: "db_press_l", name: "DB Press (Flat)", heavy: false, sets: 3, reps: "8-10", startLbs: 35, note: "Light. Tempo 3/0/3/0." },
+      { id: "db_row", name: "DB Row (Neutral Grip)", heavy: false, sets: 3, reps: "8-10", startLbs: 45, note: "Capped at pain-free weight." },
+      { id: "cable_row", name: "Seated Cable Row (Wide)", heavy: false, sets: 3, reps: "10-12", startLbs: 60, note: "Wide grip minimizes bicep." },
+      { id: "face_pull", name: "Cable Face Pull", heavy: false, sets: 3, reps: "15-20", startLbs: 20, note: "External rotation at top." },
+      { id: "rear_delt", name: "Reverse Pec Deck", heavy: false, sets: 3, reps: "12-15", startLbs: 40, note: "Shoulders down and back." },
+    ],
+    rehab: [
+      { id: "rs_wall", name: "Scapular Wall Slides", sets: 3, reps: "10", note: "Shoulder rehab · W to Y position" },
+      { id: "rs_cable_er", name: "Cable External Rotation", sets: 3, reps: "12-15", note: "Shoulder rehab · Elbow at side" },
+      { id: "rs_ytw", name: "Prone Y-T-W Raises", sets: 2, reps: "10 each", note: "Shoulder rehab · Light DBs 2-5 lbs" },
+      { id: "rs_band2", name: "Band Pull-Apart", sets: 3, reps: "15-20", note: "Shoulder rehab · Thumbs up" },
+    ]
+  },
+};
+
+const DAY_KEYS = ["mon", "wed", "fri", "sat"];
+const CHART_LIFTS = [
+  { id: "squat_h", label: "Squat", color: "#67d4f4" },
+  { id: "deadlift_h", label: "Deadlift", color: "#f59e0b" },
+  { id: "db_press_h", label: "DB Press", color: "#c5f467" },
+  { id: "incline_h", label: "Incline", color: "#a78bfa" },
+];
+
+const STEP_GOAL = 6000;
+
+/* ════════════════════════════════════════════
+   STORAGE — localStorage + JSON file backup
+   ════════════════════════════════════════════ */
+
+const STORAGE_KEY = "iron-log-data";
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveData(d) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch (e) { console.error("save err", e); }
+}
+
+function exportData(d) {
+  const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `iron-log-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function emptyState() {
+  return { sessions: {}, steps: {}, rehabDone: {}, weekNum: 1 };
+}
+
+function sessionKey(dayKey, week) { return `${dayKey}_w${week}`; }
+
+function buildEmptySets(exercise) {
+  return Array.from({ length: exercise.sets }, () => ({
+    lbs: exercise.startLbs, reps: 0, rpe: null, painBicep: false, painShoulder: false
+  }));
+}
+
+/* ════════════════════════════════════════════
+   COLORS
+   ════════════════════════════════════════════ */
+
+const C = {
+  bg: "#07080a", surface: "#0f1114", surface2: "#161a1f", border: "#1e2328",
+  borderHi: "#2a3038", text: "#dce0e5", muted: "#7a828c", dim: "#464d56",
+  accent: "#c5f467", accentDim: "#7fa33a", warn: "#f59e0b", danger: "#ef4444",
+  rehab: "#67d4f4", steps: "#a78bfa", success: "#34d399",
+};
+
+/* ════════════════════════════════════════════
+   COMPONENTS
+   ════════════════════════════════════════════ */
+
+function PainToggle({ active, label, color, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      background: active ? color + "22" : "transparent",
+      border: `1px solid ${active ? color : C.border}`,
+      color: active ? color : C.dim, borderRadius: 6, padding: "2px 8px", fontSize: 11,
+      cursor: "pointer", fontFamily: "inherit", transition: "all .15s", whiteSpace: "nowrap",
+    }}>{label}</button>
+  );
+}
+
+function SetRow({ set, idx, onChange }) {
+  const inp = {
+    background: C.surface, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6,
+    padding: "6px 8px", fontSize: 14, fontFamily: "'JetBrains Mono',monospace",
+    width: "100%", outline: "none", textAlign: "center",
+  };
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr 76px auto auto", gap: 8, alignItems: "center", padding: "5px 0" }}>
+      <span style={{ color: C.dim, fontSize: 12, fontFamily: "'JetBrains Mono',monospace" }}>S{idx + 1}</span>
+      <input type="number" placeholder="lbs" value={set.lbs || ""} style={inp}
+        onChange={e => onChange({ ...set, lbs: Number(e.target.value) })} />
+      <input type="number" placeholder="reps" value={set.reps || ""} style={inp}
+        onChange={e => onChange({ ...set, reps: Number(e.target.value) })} />
+      <select value={set.rpe || ""} style={{ ...inp, padding: "6px 2px", cursor: "pointer", appearance: "auto" }}
+        onChange={e => onChange({ ...set, rpe: e.target.value ? Number(e.target.value) : null })}>
+        <option value="">RPE</option>
+        {[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10].map(v => <option key={v} value={v}>{v}</option>)}
+      </select>
+      <PainToggle active={set.painBicep} label="Bicep" color={C.danger}
+        onClick={() => onChange({ ...set, painBicep: !set.painBicep })} />
+      <PainToggle active={set.painShoulder} label="Shldr" color={C.warn}
+        onClick={() => onChange({ ...set, painShoulder: !set.painShoulder })} />
+    </div>
+  );
+}
+
+function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabToggle }) {
+  const [open, setOpen] = useState(false);
+  const hasData = sets && sets.some(s => s.reps > 0);
+  const hasPain = sets && sets.some(s => s.painBicep || s.painShoulder);
+  const tagColor = isRehab ? C.rehab : exercise.heavy ? C.accent : C.muted;
+  const tagLabel = isRehab ? "REHAB" : exercise.heavy ? "HEAVY" : "LIGHT · 3/0/3/0";
+
+  return (
+    <div style={{
+      background: C.surface,
+      border: `1px solid ${hasPain ? C.danger + "66" : C.border}`,
+      borderRadius: 10, marginBottom: 8, overflow: "hidden", transition: "border-color .2s",
+    }}>
+      <div onClick={() => !isRehab && setOpen(!open)} style={{
+        padding: "12px 16px", cursor: isRehab ? "default" : "pointer",
+        display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
+          {isRehab ? (
+            <input type="checkbox" checked={!!rehabDone} onChange={onRehabToggle}
+              style={{ width: 16, height: 16, accentColor: C.rehab, cursor: "pointer", flexShrink: 0 }} />
+          ) : (
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: hasData ? C.success : C.dim, flexShrink: 0 }} />
+          )}
+          <span style={{
+            color: isRehab && rehabDone ? C.dim : C.text, fontSize: 14, fontWeight: 500,
+            textDecoration: isRehab && rehabDone ? "line-through" : "none",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+          }}>{exercise.name}</span>
+          <span style={{
+            color: tagColor, fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase",
+            background: tagColor + "15", padding: "2px 8px", borderRadius: 4, flexShrink: 0,
+          }}>{tagLabel}</span>
+        </div>
+        {isRehab && (
+          <span style={{ color: C.rehab, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>
+            {exercise.sets}×{exercise.reps}
+          </span>
+        )}
+        {!isRehab && (
+          <>
+            <span style={{ color: C.muted, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>
+              {exercise.sets}×{exercise.reps}
+            </span>
+            <span style={{ color: C.dim, fontSize: 16, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }}>▾</span>
+          </>
+        )}
+      </div>
+      {open && !isRehab && (
+        <div style={{ padding: "0 16px 14px", borderTop: `1px solid ${C.border}` }}>
+          <div style={{ padding: "8px 0 4px", color: C.muted, fontSize: 12, fontStyle: "italic" }}>{exercise.note}</div>
+          {sets && (
+            <div>
+              <div style={{
+                display: "grid", gridTemplateColumns: "32px 1fr 1fr 76px auto auto", gap: 8, padding: "4px 0",
+                color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase",
+              }}>
+                <span></span><span>LBS</span><span>REPS</span><span>RPE</span><span>PAIN</span><span></span>
+              </div>
+              {sets.map((s, i) => (
+                <SetRow key={i} set={s} idx={i} onChange={newSet => {
+                  const updated = [...sets]; updated[i] = newSet; onUpdate(updated);
+                }} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      {isRehab && (
+        <div style={{ padding: "0 16px 10px" }}>
+          <div style={{ color: C.muted, fontSize: 11, fontStyle: "italic" }}>{exercise.note}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepTracker({ steps, onUpdate }) {
+  const pct = Math.min((steps / STEP_GOAL) * 100, 100);
+  const met = steps >= STEP_GOAL;
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ color: C.steps, fontSize: 13, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>
+          ◯ DAILY STEPS
+        </span>
+        <span style={{ color: met ? C.success : C.muted, fontSize: 12 }}>
+          {met ? "✓ Goal reached" : `${(STEP_GOAL - steps).toLocaleString()} to go`}
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <input type="number" placeholder="0" value={steps || ""} style={{
+          background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8,
+          padding: "8px 12px", fontSize: 18, fontFamily: "'JetBrains Mono',monospace", width: 120, outline: "none",
+        }} onChange={e => onUpdate(Number(e.target.value) || 0)} />
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ width: `${pct}%`, height: "100%", background: met ? C.success : C.steps,
+              borderRadius: 4, transition: "width .3s" }} />
+          </div>
+        </div>
+        <span style={{ color: C.text, fontSize: 14, fontFamily: "'JetBrains Mono',monospace", minWidth: 60, textAlign: "right" }}>
+          {steps.toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ProgressChart({ data }) {
+  if (!data || data.length < 1) return (
+    <div style={{ color: C.dim, fontSize: 13, textAlign: "center", padding: 40 }}>
+      Log at least one session to see progress charts
+    </div>
+  );
+  return (
+    <div style={{ width: "100%", height: 280 }}>
+      <ResponsiveContainer>
+        <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+          <XAxis dataKey="week" stroke={C.dim} fontSize={11} tickLine={false} />
+          <YAxis stroke={C.dim} fontSize={11} tickLine={false} axisLine={false} />
+          <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 8, color: C.text, fontSize: 12 }} />
+          {CHART_LIFTS.map(l => (
+            <Line key={l.id} type="monotone" dataKey={l.id} name={l.label} stroke={l.color}
+              strokeWidth={2} dot={{ r: 4, fill: l.color }} connectNulls />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+      <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
+        {CHART_LIFTS.map(l => (
+          <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 10, height: 3, background: l.color, borderRadius: 2 }} />
+            <span style={{ color: C.muted, fontSize: 11 }}>{l.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════
+   MAIN APP
+   ════════════════════════════════════════════ */
+
+export default function App() {
+  const [data, setData] = useState(null);
+  const [activeDay, setActiveDay] = useState("mon");
+  const [view, setView] = useState("workout");
+  const [week, setWeek] = useState(1);
+  const saveTimeout = useRef(null);
+
+  useEffect(() => {
+    const saved = loadData();
+    const d = saved || emptyState();
+    setData(d);
+    setWeek(d.weekNum || 1);
+  }, []);
+
+  const persist = useCallback((newData) => {
+    setData(newData);
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => saveData(newData), 400);
+  }, []);
+
+  const getSession = useCallback((dayKey) => {
+    if (!data) return null;
+    const sk = sessionKey(dayKey, week);
+    if (data.sessions[sk]) return data.sessions[sk];
+    const day = PROGRAM[dayKey];
+    const session = {};
+    day.exercises.forEach(ex => { session[ex.id] = buildEmptySets(ex); });
+    return session;
+  }, [data, week]);
+
+  const updateSet = useCallback((dayKey, exId, sets) => {
+    const sk = sessionKey(dayKey, week);
+    const session = getSession(dayKey);
+    session[exId] = sets;
+    persist({ ...data, sessions: { ...data.sessions, [sk]: session } });
+  }, [data, week, getSession, persist]);
+
+  const getSteps = useCallback((dayKey) => {
+    if (!data) return 0;
+    return data.steps[`steps_${dayKey}_w${week}`] || 0;
+  }, [data, week]);
+
+  const updateSteps = useCallback((dayKey, val) => {
+    persist({ ...data, steps: { ...data.steps, [`steps_${dayKey}_w${week}`]: val } });
+  }, [data, week, persist]);
+
+  const getRehabDone = useCallback((dayKey, rehabId) => {
+    if (!data) return false;
+    return !!(data.rehabDone || {})[`${rehabId}_${dayKey}_w${week}`];
+  }, [data, week]);
+
+  const toggleRehab = useCallback((dayKey, rehabId) => {
+    const k = `${rehabId}_${dayKey}_w${week}`;
+    const rd = { ...(data.rehabDone || {}), [k]: !((data.rehabDone || {})[k]) };
+    persist({ ...data, rehabDone: rd });
+  }, [data, week, persist]);
+
+  const changeWeek = (dir) => {
+    const nw = Math.max(1, Math.min(52, week + dir));
+    setWeek(nw);
+    if (data && nw > (data.weekNum || 1)) {
+      persist({ ...data, weekNum: nw });
+    }
+  };
+
+  const handleImport = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported = JSON.parse(text);
+        if (imported.sessions) {
+          persist(imported);
+          setWeek(imported.weekNum || 1);
+          alert("Data imported successfully!");
+        } else {
+          alert("Invalid backup file.");
+        }
+      } catch { alert("Failed to read file."); }
+    };
+    input.click();
+  };
+
+  const chartData = useCallback(() => {
+    if (!data) return [];
+    const points = [];
+    for (let w = 1; w <= (data.weekNum || 1); w++) {
+      const point = { week: `W${w}` };
+      CHART_LIFTS.forEach(lift => {
+        for (const dk of DAY_KEYS) {
+          const sk = sessionKey(dk, w);
+          const session = data.sessions[sk];
+          if (session && session[lift.id]) {
+            const sets = session[lift.id];
+            const maxLbs = Math.max(...sets.filter(s => s.reps > 0).map(s => s.lbs), 0);
+            if (maxLbs > 0) point[lift.id] = maxLbs;
+          }
+        }
+      });
+      if (Object.keys(point).length > 1) points.push(point);
+    }
+    return points;
+  }, [data]);
+
+  const painCount = useCallback(() => {
+    if (!data) return { bicep: 0, shoulder: 0 };
+    let b = 0, s = 0;
+    DAY_KEYS.forEach(dk => {
+      const sk = sessionKey(dk, week);
+      const session = data.sessions[sk];
+      if (session) Object.values(session).forEach(sets => {
+        if (Array.isArray(sets)) sets.forEach(set => {
+          if (set.painBicep) b++;
+          if (set.painShoulder) s++;
+        });
+      });
+    });
+    return { bicep: b, shoulder: s };
+  }, [data, week]);
+
+  if (!data) {
+    return (
+      <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: C.muted, fontSize: 14, fontFamily: "'DM Sans',sans-serif" }}>Loading...</div>
+      </div>
+    );
+  }
+
+  const day = PROGRAM[activeDay];
+  const session = getSession(activeDay);
+  const pain = painCount();
+
+  return (
+    <div style={{
+      minHeight: "100vh", background: C.bg, color: C.text,
+      fontFamily: "'DM Sans','Helvetica Neue',sans-serif", maxWidth: 680, margin: "0 auto", padding: "0 0 80px",
+    }}>
+      {/* ─── HEADER ─── */}
+      <div style={{ padding: "20px 16px 0", borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: -0.5, color: C.accent }}>IRON LOG</h1>
+            <span style={{ color: C.muted, fontSize: 12 }}>4-Day Heavy/Light · Compound Focus · 3/0/3/0 Tendon Tempo</span>
+          </div>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <button onClick={() => exportData(data)} title="Export backup" style={{
+              background: C.surface, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6,
+              padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+            }}>↓ Export</button>
+            <button onClick={handleImport} title="Import backup" style={{
+              background: C.surface, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6,
+              padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+            }}>↑ Import</button>
+          </div>
+        </div>
+
+        {/* PAIN BADGES */}
+        {(pain.bicep > 0 || pain.shoulder > 0) && (
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {pain.bicep > 0 && <span style={{ background: C.danger + "22", color: C.danger, fontSize: 10,
+              fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>⚠ Bicep pain ×{pain.bicep} this week</span>}
+            {pain.shoulder > 0 && <span style={{ background: C.warn + "22", color: C.warn, fontSize: 10,
+              fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>⚠ Shoulder pain ×{pain.shoulder} this week</span>}
+          </div>
+        )}
+
+        {/* WEEK NAV */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, paddingBottom: 14 }}>
+          <button onClick={() => changeWeek(-1)} style={{ background: "none", border: "none",
+            color: week > 1 ? C.text : C.dim, fontSize: 18, cursor: "pointer", padding: "4px 8px" }}>◀</button>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 16, fontWeight: 600,
+            color: C.accent, letterSpacing: 2 }}>WEEK {week}</span>
+          <button onClick={() => changeWeek(1)} style={{ background: "none", border: "none",
+            color: C.text, fontSize: 18, cursor: "pointer", padding: "4px 8px" }}>▶</button>
+        </div>
+
+        {/* VIEW TOGGLE */}
+        <div style={{ display: "flex", gap: 0, marginBottom: -1 }}>
+          {[{ k: "workout", l: "Workout" }, { k: "progress", l: "Progress" }].map(v => (
+            <button key={v.k} onClick={() => setView(v.k)} style={{
+              flex: 1, background: view === v.k ? C.surface : "transparent",
+              border: `1px solid ${view === v.k ? C.border : "transparent"}`,
+              borderBottom: view === v.k ? `1px solid ${C.surface}` : `1px solid ${C.border}`,
+              borderRadius: "8px 8px 0 0", padding: "10px 0", color: view === v.k ? C.text : C.dim,
+              fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.5,
+            }}>{v.l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* ─── WORKOUT VIEW ─── */}
+      {view === "workout" && (
+        <div style={{ padding: 16 }}>
+          {/* DAY TABS */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
+            {DAY_KEYS.map(dk => {
+              const d = PROGRAM[dk];
+              const sk = sessionKey(dk, week);
+              const hasLogs = data.sessions[sk] && Object.values(data.sessions[sk]).some(
+                sets => Array.isArray(sets) && sets.some(s => s.reps > 0));
+              const isActive = dk === activeDay;
+              return (
+                <button key={dk} onClick={() => setActiveDay(dk)} style={{
+                  flex: 1, padding: "10px 4px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+                  background: isActive ? C.surface2 : "transparent",
+                  border: `1px solid ${isActive ? C.borderHi : C.border}`,
+                  color: isActive ? C.text : C.muted, fontSize: 13, fontWeight: 600, position: "relative",
+                }}>
+                  {d.label}
+                  {hasLogs && <span style={{ position: "absolute", top: 4, right: 6, width: 6, height: 6,
+                    borderRadius: "50%", background: C.success }} />}
+                </button>
+              );
+            })}
+          </div>
+
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 14px", color: C.text }}>{day.title}</h2>
+
+          <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
+
+          <div style={{ marginBottom: 8 }}>
+            <span style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>EXERCISES</span>
+          </div>
+          {day.exercises.map(ex => (
+            <ExerciseCard key={ex.id} exercise={ex} isRehab={false}
+              sets={session ? session[ex.id] : buildEmptySets(ex)}
+              onUpdate={sets => updateSet(activeDay, ex.id, sets)} />
+          ))}
+
+          <div style={{ marginTop: 20, marginBottom: 8 }}>
+            <span style={{ color: C.rehab, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>REHAB PROTOCOL</span>
+          </div>
+          {day.rehab.map(ex => (
+            <ExerciseCard key={ex.id} exercise={ex} isRehab={true} sets={null} onUpdate={() => {}}
+              rehabDone={getRehabDone(activeDay, ex.id)}
+              onRehabToggle={() => toggleRehab(activeDay, ex.id)} />
+          ))}
+
+          <div style={{ marginTop: 20, padding: 14, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+            <div style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5, marginBottom: 6 }}>SESSION NOTES</div>
+            <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }}>
+              {(activeDay === "mon" || activeDay === "fri")
+                ? "Lower body day — 2 light warm-up sets before working weight on heavy compound."
+                : "Upper body day — begin with rehab/activation exercises before pressing."}
+              {" "}Light exercises: 3s concentric / 3s eccentric for tendon loading.
+              {" "}Log pain flags if any discomfort in bicep or shoulder during sets.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── PROGRESS VIEW ─── */}
+      {view === "progress" && (
+        <div style={{ padding: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>Main Lift Progression</h2>
+          <span style={{ color: C.muted, fontSize: 12 }}>Top working weight per week</span>
+
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginTop: 14 }}>
+            <ProgressChart data={chartData()} />
+          </div>
+
+          {/* SESSION HISTORY */}
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: "24px 0 12px" }}>Session History</h3>
+          {Array.from({ length: Math.min(week, 16) }, (_, i) => week - i).map(w => {
+            const weekSessions = DAY_KEYS.map(dk => {
+              const sk = sessionKey(dk, w);
+              return { day: PROGRAM[dk].label, session: data.sessions[sk] };
+            });
+            const hasAny = weekSessions.some(ws => ws.session && Object.values(ws.session).some(
+              sets => Array.isArray(sets) && sets.some(s => s.reps > 0)));
+            if (!hasAny && w !== week) return null;
+            return (
+              <div key={w} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
+                <div style={{ color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>
+                  WEEK {w} {w === week && <span style={{ color: C.muted, fontWeight: 400 }}>← current</span>}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                  {weekSessions.map(ws => {
+                    const completed = ws.session && Object.values(ws.session).some(
+                      sets => Array.isArray(sets) && sets.some(s => s.reps > 0));
+                    return (
+                      <div key={ws.day} style={{ textAlign: "center" }}>
+                        <div style={{ color: C.dim, fontSize: 10, fontWeight: 600, marginBottom: 4 }}>{ws.day}</div>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: "50%", margin: "0 auto",
+                          background: completed ? C.success + "22" : C.border,
+                          border: `2px solid ${completed ? C.success : C.dim}`,
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          color: completed ? C.success : C.dim, fontSize: 13,
+                        }}>{completed ? "✓" : "–"}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* PAIN SUMMARY */}
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: "24px 0 12px" }}>Pain Flag Summary — Week {week}</h3>
+          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ color: C.danger, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{pain.bicep}</div>
+                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Bicep flags</div>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div style={{ color: C.warn, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{pain.shoulder}</div>
+                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Shoulder flags</div>
+              </div>
+            </div>
+            {(pain.bicep > 3 || pain.shoulder > 3) && (
+              <div style={{ marginTop: 14, padding: 10, background: C.danger + "11", borderRadius: 8,
+                color: C.danger, fontSize: 12, textAlign: "center" }}>
+                Multiple pain flags detected — bring this up in your next chat for adjustments
+              </div>
+            )}
+            {pain.bicep === 0 && pain.shoulder === 0 && (
+              <div style={{ marginTop: 10, color: C.success, fontSize: 12, textAlign: "center" }}>
+                No pain flags this week ✓
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
