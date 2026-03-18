@@ -64,6 +64,15 @@ const PROGRAM = {
 };
 
 const DAY_KEYS = ["mon", "wed", "fri", "sat"];
+const ALL_DAYS = [
+  { key: "mon", label: "MON", rest: false },
+  { key: "tue", label: "TUE", rest: true },
+  { key: "wed", label: "WED", rest: false },
+  { key: "thu", label: "THU", rest: true },
+  { key: "fri", label: "FRI", rest: false },
+  { key: "sat", label: "SAT", rest: false },
+  { key: "sun", label: "SUN", rest: true },
+];
 const CHART_LIFTS = [
   { id: "squat_h", label: "Squat", color: "#67d4f4" },
   { id: "deadlift_h", label: "Deadlift", color: "#f59e0b" },
@@ -101,7 +110,11 @@ function exportData(d) {
 }
 
 function emptyState() {
-  return { sessions: {}, steps: {}, rehabDone: {}, weekNum: 1 };
+  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1 };
+}
+
+function calcKcal(m) {
+  return Math.round((m.protein || 0) * 4 + (m.carbs || 0) * 4 + (m.fat || 0) * 9);
 }
 
 function sessionKey(dayKey, week) { return `${dayKey}_w${week}`; }
@@ -274,6 +287,113 @@ function StepTracker({ steps, onUpdate }) {
   );
 }
 
+function MacroSection({ meals, onUpdate, isTrainingDay }) {
+  const goal = isTrainingDay ? 2800 : 2000;
+
+  const totals = meals.reduce((acc, m) => ({
+    protein: acc.protein + (m.protein || 0),
+    carbs: acc.carbs + (m.carbs || 0),
+    fiber: acc.fiber + (m.fiber || 0),
+    fat: acc.fat + (m.fat || 0),
+    satFat: acc.satFat + (m.satFat || 0),
+    kcal: acc.kcal + calcKcal(m),
+  }), { protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, kcal: 0 });
+
+  const pct = Math.min((totals.kcal / goal) * 100, 100);
+  const over = totals.kcal > goal;
+
+  const addMeal = () => onUpdate([...meals, { id: Date.now(), name: "", protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0 }]);
+  const updateMeal = (id, field, val) => onUpdate(meals.map(m => m.id === id ? { ...m, [field]: val } : m));
+  const removeMeal = (id) => onUpdate(meals.filter(m => m.id !== id));
+
+  const inp = {
+    background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6,
+    padding: "5px 4px", fontSize: 12, fontFamily: "'JetBrains Mono',monospace",
+    width: "100%", outline: "none", textAlign: "center",
+  };
+
+  const macroFields = [
+    { key: "protein", label: "PRO", color: C.accent },
+    { key: "carbs", label: "CARB", color: C.warn },
+    { key: "fiber", label: "FIBER", color: C.success },
+    { key: "fat", label: "FAT", color: C.rehab },
+    { key: "satFat", label: "SFAT", color: C.muted },
+  ];
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      {/* Header + calorie bar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ color: C.warn, fontSize: 13, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>◯ NUTRITION</span>
+        <span style={{ color: C.muted, fontSize: 11 }}>{isTrainingDay ? "Training" : "Rest"} · target {goal.toLocaleString()} kcal</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+        <span style={{ color: over ? C.danger : C.text, fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", minWidth: 56 }}>
+          {totals.kcal.toLocaleString()}
+        </span>
+        <div style={{ flex: 1 }}>
+          <div style={{ height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ width: `${pct}%`, height: "100%", borderRadius: 4, transition: "width .3s",
+              background: over ? C.danger : pct > 85 ? C.warn : C.success }} />
+          </div>
+        </div>
+        <span style={{ color: C.muted, fontSize: 11 }}>{goal.toLocaleString()} kcal</span>
+      </div>
+
+      {/* Macro totals row */}
+      {meals.length > 0 && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          {macroFields.map(f => (
+            <div key={f.key} style={{ textAlign: "center", minWidth: 44 }}>
+              <div style={{ color: f.color, fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>{f.label}</div>
+              <div style={{ color: C.text, fontSize: 13, fontFamily: "'JetBrains Mono',monospace" }}>{totals[f.key]}g</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Column headers */}
+      {meals.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 52px 52px 52px 52px 52px 44px 24px", gap: 4,
+          color: C.dim, fontSize: 9, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase",
+          padding: "0 0 4px", marginBottom: 2 }}>
+          <span>MEAL</span>
+          {macroFields.map(f => <span key={f.key} style={{ textAlign: "center", color: f.color }}>{f.label}</span>)}
+          <span style={{ textAlign: "center" }}>KCAL</span>
+          <span></span>
+        </div>
+      )}
+
+      {/* Meal rows */}
+      {meals.map(m => (
+        <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 52px 52px 52px 52px 52px 44px 24px", gap: 4, marginBottom: 5, alignItems: "center" }}>
+          <input placeholder="meal / food" value={m.name} style={{ ...inp, textAlign: "left", padding: "5px 8px", fontSize: 12 }}
+            onChange={e => updateMeal(m.id, "name", e.target.value)} />
+          {macroFields.map(f => (
+            <input key={f.key} type="number" placeholder="0" value={m[f.key] || ""} style={inp}
+              onChange={e => updateMeal(m.id, f.key, Number(e.target.value) || 0)} />
+          ))}
+          <span style={{ color: C.muted, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", textAlign: "center" }}>
+            {calcKcal(m)}
+          </span>
+          <button onClick={() => removeMeal(m.id)} style={{
+            background: "none", border: "none", color: C.dim, fontSize: 14, cursor: "pointer",
+            padding: 0, lineHeight: 1, fontFamily: "inherit",
+          }}>✕</button>
+        </div>
+      ))}
+
+      {/* Add row button */}
+      <button onClick={addMeal} style={{
+        marginTop: meals.length > 0 ? 8 : 0,
+        background: "transparent", border: `1px dashed ${C.border}`, color: C.muted,
+        borderRadius: 8, padding: "7px 0", width: "100%", cursor: "pointer",
+        fontSize: 13, fontFamily: "inherit", letterSpacing: 0.5,
+      }}>+ add meal</button>
+    </div>
+  );
+}
+
 function ProgressChart({ data }) {
   if (!data || data.length < 1) return (
     <div style={{ color: C.dim, fontSize: 13, textAlign: "center", padding: 40 }}>
@@ -354,6 +474,15 @@ export default function App() {
 
   const updateSteps = useCallback((dayKey, val) => {
     persist({ ...data, steps: { ...data.steps, [`steps_${dayKey}_w${week}`]: val } });
+  }, [data, week, persist]);
+
+  const getMeals = useCallback((dayKey) => {
+    if (!data) return [];
+    return (data.meals || {})[`meals_${dayKey}_w${week}`] || [];
+  }, [data, week]);
+
+  const updateMeals = useCallback((dayKey, meals) => {
+    persist({ ...data, meals: { ...(data.meals || {}), [`meals_${dayKey}_w${week}`]: meals } });
   }, [data, week, persist]);
 
   const getRehabDone = useCallback((dayKey, rehabId) => {
@@ -442,8 +571,10 @@ export default function App() {
     );
   }
 
-  const day = PROGRAM[activeDay];
-  const session = getSession(activeDay);
+  const activeDayMeta = ALL_DAYS.find(d => d.key === activeDay);
+  const isRestDay = activeDayMeta?.rest ?? false;
+  const day = isRestDay ? null : PROGRAM[activeDay];
+  const session = isRestDay ? null : getSession(activeDay);
   const pain = painCount();
 
   return (
@@ -508,60 +639,77 @@ export default function App() {
       {view === "workout" && (
         <div style={{ padding: 16 }}>
           {/* DAY TABS */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-            {DAY_KEYS.map(dk => {
-              const d = PROGRAM[dk];
+          <div style={{ display: "flex", gap: 4, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>
+            {ALL_DAYS.map(({ key: dk, label, rest }) => {
               const sk = sessionKey(dk, week);
-              const hasLogs = data.sessions[sk] && Object.values(data.sessions[sk]).some(
+              const hasLogs = !rest && data.sessions[sk] && Object.values(data.sessions[sk]).some(
                 sets => Array.isArray(sets) && sets.some(s => s.reps > 0));
+              const hasSteps = (data.steps[`steps_${dk}_w${week}`] || 0) > 0;
               const isActive = dk === activeDay;
               return (
                 <button key={dk} onClick={() => setActiveDay(dk)} style={{
-                  flex: 1, padding: "10px 4px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+                  flex: "0 0 auto", minWidth: 44, padding: "8px 4px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
                   background: isActive ? C.surface2 : "transparent",
                   border: `1px solid ${isActive ? C.borderHi : C.border}`,
-                  color: isActive ? C.text : C.muted, fontSize: 13, fontWeight: 600, position: "relative",
+                  color: isActive ? C.text : rest ? C.dim : C.muted,
+                  fontSize: 12, fontWeight: 600, position: "relative",
                 }}>
-                  {d.label}
-                  {hasLogs && <span style={{ position: "absolute", top: 4, right: 6, width: 6, height: 6,
-                    borderRadius: "50%", background: C.success }} />}
+                  {label}
+                  {rest && <div style={{ fontSize: 8, color: C.dim, marginTop: 1 }}>REST</div>}
+                  {(hasLogs || hasSteps) && <span style={{ position: "absolute", top: 4, right: 5, width: 5, height: 5,
+                    borderRadius: "50%", background: hasLogs ? C.success : C.steps }} />}
                 </button>
               );
             })}
           </div>
 
-          <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 14px", color: C.text }}>{day.title}</h2>
+          {isRestDay ? (
+            <>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 14px", color: C.muted }}>Rest Day — {activeDayMeta.label}</h2>
+              <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
+              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={false} />
+            </>
+          ) : (
+            <>
+              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 14px", color: C.text }}>{day.title}</h2>
 
-          <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
+              <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
 
-          <div style={{ marginBottom: 8 }}>
-            <span style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>EXERCISES</span>
-          </div>
-          {day.exercises.map(ex => (
-            <ExerciseCard key={ex.id} exercise={ex} isRehab={false}
-              sets={session ? session[ex.id] : buildEmptySets(ex)}
-              onUpdate={sets => updateSet(activeDay, ex.id, sets)} />
-          ))}
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>EXERCISES</span>
+              </div>
+              {day.exercises.map(ex => (
+                <ExerciseCard key={ex.id} exercise={ex} isRehab={false}
+                  sets={session ? session[ex.id] : buildEmptySets(ex)}
+                  onUpdate={sets => updateSet(activeDay, ex.id, sets)} />
+              ))}
 
-          <div style={{ marginTop: 20, marginBottom: 8 }}>
-            <span style={{ color: C.rehab, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>REHAB PROTOCOL</span>
-          </div>
-          {day.rehab.map(ex => (
-            <ExerciseCard key={ex.id} exercise={ex} isRehab={true} sets={null} onUpdate={() => {}}
-              rehabDone={getRehabDone(activeDay, ex.id)}
-              onRehabToggle={() => toggleRehab(activeDay, ex.id)} />
-          ))}
+              <div style={{ marginTop: 20, marginBottom: 8 }}>
+                <span style={{ color: C.rehab, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>REHAB PROTOCOL</span>
+              </div>
+              {day.rehab.map(ex => (
+                <ExerciseCard key={ex.id} exercise={ex} isRehab={true} sets={null} onUpdate={() => {}}
+                  rehabDone={getRehabDone(activeDay, ex.id)}
+                  onRehabToggle={() => toggleRehab(activeDay, ex.id)} />
+              ))}
 
-          <div style={{ marginTop: 20, padding: 14, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
-            <div style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5, marginBottom: 6 }}>SESSION NOTES</div>
-            <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }}>
-              {(activeDay === "mon" || activeDay === "fri")
-                ? "Lower body day — 2 light warm-up sets before working weight on heavy compound."
-                : "Upper body day — begin with rehab/activation exercises before pressing."}
-              {" "}Light exercises: 3s concentric / 3s eccentric for tendon loading.
-              {" "}Log pain flags if any discomfort in bicep or shoulder during sets.
-            </div>
-          </div>
+              <div style={{ marginTop: 20, marginBottom: 8 }}>
+                <span style={{ color: C.warn, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>NUTRITION</span>
+              </div>
+              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={true} />
+
+              <div style={{ marginTop: 8, padding: 14, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
+                <div style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5, marginBottom: 6 }}>SESSION NOTES</div>
+                <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }}>
+                  {(activeDay === "mon" || activeDay === "fri")
+                    ? "Lower body day — 2 light warm-up sets before working weight on heavy compound."
+                    : "Upper body day — begin with rehab/activation exercises before pressing."}
+                  {" "}Light exercises: 3s concentric / 3s eccentric for tendon loading.
+                  {" "}Log pain flags if any discomfort in bicep or shoulder during sets.
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -578,32 +726,35 @@ export default function App() {
           {/* SESSION HISTORY */}
           <h3 style={{ fontSize: 14, fontWeight: 600, margin: "24px 0 12px" }}>Session History</h3>
           {Array.from({ length: Math.min(week, 16) }, (_, i) => week - i).map(w => {
-            const weekSessions = DAY_KEYS.map(dk => {
+            const weekDays = ALL_DAYS.map(({ key: dk, label, rest }) => {
               const sk = sessionKey(dk, w);
-              return { day: PROGRAM[dk].label, session: data.sessions[sk] };
+              const steps = (data.steps[`steps_${dk}_w${w}`] || 0);
+              return { label, rest, session: rest ? null : data.sessions[sk], steps };
             });
-            const hasAny = weekSessions.some(ws => ws.session && Object.values(ws.session).some(
-              sets => Array.isArray(sets) && sets.some(s => s.reps > 0)));
+            const hasAny = weekDays.some(wd => (!wd.rest && wd.session && Object.values(wd.session).some(
+              sets => Array.isArray(sets) && sets.some(s => s.reps > 0))) || wd.steps > 0);
             if (!hasAny && w !== week) return null;
             return (
               <div key={w} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
                 <div style={{ color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>
                   WEEK {w} {w === week && <span style={{ color: C.muted, fontWeight: 400 }}>← current</span>}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-                  {weekSessions.map(ws => {
-                    const completed = ws.session && Object.values(ws.session).some(
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+                  {weekDays.map(wd => {
+                    const completed = !wd.rest && wd.session && Object.values(wd.session).some(
                       sets => Array.isArray(sets) && sets.some(s => s.reps > 0));
+                    const stepsLogged = wd.steps >= STEP_GOAL;
+                    const color = completed ? C.success : stepsLogged ? C.steps : C.dim;
                     return (
-                      <div key={ws.day} style={{ textAlign: "center" }}>
-                        <div style={{ color: C.dim, fontSize: 10, fontWeight: 600, marginBottom: 4 }}>{ws.day}</div>
+                      <div key={wd.label} style={{ textAlign: "center" }}>
+                        <div style={{ color: C.dim, fontSize: 9, fontWeight: 600, marginBottom: 4 }}>{wd.label}</div>
                         <div style={{
-                          width: 32, height: 32, borderRadius: "50%", margin: "0 auto",
-                          background: completed ? C.success + "22" : C.border,
-                          border: `2px solid ${completed ? C.success : C.dim}`,
+                          width: 28, height: 28, borderRadius: "50%", margin: "0 auto",
+                          background: (completed || stepsLogged) ? color + "22" : C.border,
+                          border: `2px solid ${color}`,
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          color: completed ? C.success : C.dim, fontSize: 13,
-                        }}>{completed ? "✓" : "–"}</div>
+                          color, fontSize: 11,
+                        }}>{completed ? "✓" : stepsLogged ? "◯" : "–"}</div>
                       </div>
                     );
                   })}
