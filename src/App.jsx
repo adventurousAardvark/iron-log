@@ -82,6 +82,95 @@ const CHART_LIFTS = [
 
 const STEP_GOAL = 6000;
 
+const EXERCISE_DB = [
+  // Legs
+  { name: "Barbell Squat", category: "Legs" },
+  { name: "Front Squat", category: "Legs" },
+  { name: "Goblet Squat", category: "Legs" },
+  { name: "Hack Squat", category: "Legs" },
+  { name: "Leg Press", category: "Legs" },
+  { name: "Bulgarian Split Squat", category: "Legs" },
+  { name: "Lunge", category: "Legs" },
+  { name: "Step Up", category: "Legs" },
+  { name: "Leg Extension", category: "Legs" },
+  { name: "Lying Leg Curl", category: "Legs" },
+  { name: "Seated Leg Curl", category: "Legs" },
+  { name: "Romanian Deadlift", category: "Legs" },
+  { name: "DB Romanian Deadlift", category: "Legs" },
+  { name: "Nordic Curl", category: "Legs" },
+  { name: "Barbell Hip Thrust", category: "Legs" },
+  { name: "Glute Bridge", category: "Legs" },
+  { name: "Good Morning", category: "Legs" },
+  { name: "Standing Calf Raise", category: "Legs" },
+  { name: "Seated Calf Raise", category: "Legs" },
+  // Back
+  { name: "Barbell Deadlift", category: "Back" },
+  { name: "Sumo Deadlift", category: "Back" },
+  { name: "Trap Bar Deadlift", category: "Back" },
+  { name: "Rack Pull", category: "Back" },
+  { name: "Pull-Up", category: "Back" },
+  { name: "Chin-Up", category: "Back" },
+  { name: "Lat Pulldown", category: "Back" },
+  { name: "Seated Cable Row", category: "Back" },
+  { name: "DB Row", category: "Back" },
+  { name: "Barbell Row", category: "Back" },
+  { name: "T-Bar Row", category: "Back" },
+  { name: "Meadows Row", category: "Back" },
+  { name: "Straight Arm Pulldown", category: "Back" },
+  { name: "Face Pull", category: "Back" },
+  { name: "Barbell Shrug", category: "Back" },
+  // Chest
+  { name: "Barbell Bench Press", category: "Chest" },
+  { name: "DB Press (Flat)", category: "Chest" },
+  { name: "Incline Barbell Press", category: "Chest" },
+  { name: "Incline DB Press", category: "Chest" },
+  { name: "Decline Bench Press", category: "Chest" },
+  { name: "Cable Fly", category: "Chest" },
+  { name: "DB Fly", category: "Chest" },
+  { name: "Pec Deck", category: "Chest" },
+  { name: "Push-Up", category: "Chest" },
+  { name: "Weighted Dip", category: "Chest" },
+  // Shoulders
+  { name: "Overhead Press", category: "Shoulders" },
+  { name: "DB Shoulder Press", category: "Shoulders" },
+  { name: "Arnold Press", category: "Shoulders" },
+  { name: "DB Lateral Raise", category: "Shoulders" },
+  { name: "Cable Lateral Raise", category: "Shoulders" },
+  { name: "Front Raise", category: "Shoulders" },
+  { name: "Reverse Pec Deck", category: "Shoulders" },
+  { name: "Upright Row", category: "Shoulders" },
+  { name: "Cable Face Pull", category: "Shoulders" },
+  { name: "Band Pull-Apart", category: "Shoulders" },
+  // Arms
+  { name: "Barbell Curl", category: "Arms" },
+  { name: "DB Curl", category: "Arms" },
+  { name: "Hammer Curl", category: "Arms" },
+  { name: "Preacher Curl", category: "Arms" },
+  { name: "Cable Curl", category: "Arms" },
+  { name: "Incline DB Curl", category: "Arms" },
+  { name: "Tricep Pushdown", category: "Arms" },
+  { name: "Overhead Tricep Extension", category: "Arms" },
+  { name: "Skull Crusher", category: "Arms" },
+  { name: "Close Grip Bench Press", category: "Arms" },
+  { name: "Tricep Kickback", category: "Arms" },
+  // Core
+  { name: "Weighted Plank", category: "Core" },
+  { name: "Ab Wheel Rollout", category: "Core" },
+  { name: "Hanging Knee Raise (Straps)", category: "Core" },
+  { name: "Hanging Leg Raise", category: "Core" },
+  { name: "Cable Crunch", category: "Core" },
+  { name: "Decline Crunch", category: "Core" },
+  { name: "Russian Twist", category: "Core" },
+  { name: "Dead Bug", category: "Core" },
+  // Rehab
+  { name: "Isometric Elbow Flexion Hold", category: "Rehab" },
+  { name: "Isometric Supination Hold", category: "Rehab" },
+  { name: "Sidelying External Rotation", category: "Rehab" },
+  { name: "Cable External Rotation", category: "Rehab" },
+  { name: "Scapular Wall Slides", category: "Rehab" },
+  { name: "Prone Y-T-W Raises", category: "Rehab" },
+];
+
 /* ════════════════════════════════════════════
    STORAGE — localStorage + JSON file backup
    ════════════════════════════════════════════ */
@@ -110,7 +199,12 @@ function exportData(d) {
 }
 
 function emptyState() {
-  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1 };
+  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1, program: {} };
+}
+
+function getProgram(data, dayKey) {
+  if (data && data.program && data.program[dayKey]) return data.program[dayKey];
+  return PROGRAM[dayKey] || null;
 }
 
 function calcKcal(m) {
@@ -178,12 +272,13 @@ function SetRow({ set, idx, onChange }) {
   );
 }
 
-function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabToggle }) {
+function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabToggle, editMode, onRemove, onAddSet, onRemoveSet }) {
   const [open, setOpen] = useState(false);
   const hasData = sets && sets.some(s => s.reps > 0);
   const hasPain = sets && sets.some(s => s.painBicep || s.painShoulder);
   const tagColor = isRehab ? C.rehab : exercise.heavy ? C.accent : C.muted;
   const tagLabel = isRehab ? "REHAB" : exercise.heavy ? "HEAVY" : "LIGHT · 3/0/3/0";
+  const currentSets = sets || [];
 
   return (
     <div style={{
@@ -220,16 +315,22 @@ function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabTog
         {!isRehab && (
           <>
             <span style={{ color: C.muted, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>
-              {exercise.sets}×{exercise.reps}
+              {currentSets.length}×{exercise.reps}
             </span>
             <span style={{ color: C.dim, fontSize: 16, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }}>▾</span>
           </>
+        )}
+        {editMode && !isRehab && onRemove && (
+          <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{
+            background: "none", border: "none", color: C.danger, fontSize: 17,
+            cursor: "pointer", padding: "0 0 0 6px", lineHeight: 1, flexShrink: 0,
+          }}>×</button>
         )}
       </div>
       {open && !isRehab && (
         <div style={{ padding: "0 16px 14px", borderTop: `1px solid ${C.border}` }}>
           <div style={{ padding: "8px 0 4px", color: C.muted, fontSize: 12, fontStyle: "italic" }}>{exercise.note}</div>
-          {sets && (
+          {currentSets.length > 0 && (
             <div>
               <div style={{
                 display: "grid", gridTemplateColumns: "32px 1fr 1fr 76px auto auto", gap: 8, padding: "4px 0",
@@ -237,11 +338,25 @@ function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabTog
               }}>
                 <span></span><span>LBS</span><span>REPS</span><span>RPE</span><span>PAIN</span><span></span>
               </div>
-              {sets.map((s, i) => (
+              {currentSets.map((s, i) => (
                 <SetRow key={i} set={s} idx={i} onChange={newSet => {
-                  const updated = [...sets]; updated[i] = newSet; onUpdate(updated);
+                  const updated = [...currentSets]; updated[i] = newSet; onUpdate(updated);
                 }} />
               ))}
+            </div>
+          )}
+          {editMode && (
+            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+              <button onClick={() => onAddSet && onAddSet()} style={{
+                flex: 1, background: C.surface2, border: `1px solid ${C.border}`,
+                color: C.accent, borderRadius: 6, padding: "6px 0", fontSize: 12,
+                cursor: "pointer", fontFamily: "inherit",
+              }}>+ Add Set</button>
+              <button onClick={() => onRemoveSet && onRemoveSet()} disabled={currentSets.length <= 1} style={{
+                flex: 1, background: C.surface2, border: `1px solid ${C.border}`,
+                color: currentSets.length > 1 ? C.danger : C.dim, borderRadius: 6, padding: "6px 0",
+                fontSize: 12, cursor: currentSets.length > 1 ? "pointer" : "default", fontFamily: "inherit",
+              }}>− Remove Set</button>
             </div>
           )}
         </div>
@@ -394,6 +509,60 @@ function MacroSection({ meals, onUpdate, isTrainingDay }) {
   );
 }
 
+function ExercisePicker({ onAdd, onClose }) {
+  const [query, setQuery] = useState("");
+  const filtered = query.length > 0
+    ? EXERCISE_DB.filter(e => e.name.toLowerCase().includes(query.toLowerCase()))
+    : EXERCISE_DB;
+  const groups = filtered.reduce((acc, ex) => {
+    if (!acc[ex.category]) acc[ex.category] = [];
+    acc[ex.category].push(ex);
+    return acc;
+  }, {});
+
+  return (
+    <div style={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <input
+          autoFocus
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search exercises…"
+          style={{
+            flex: 1, background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8,
+            padding: "8px 12px", fontSize: 13, fontFamily: "inherit", outline: "none",
+          }}
+        />
+        <button onClick={onClose} style={{ background: "none", border: "none", color: C.dim, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
+      </div>
+      <div style={{ maxHeight: 300, overflowY: "auto" }}>
+        {query.length > 0 && (
+          <button onClick={() => { onAdd({ name: query }); onClose(); }} style={{
+            width: "100%", textAlign: "left", background: C.accent + "15", border: `1px solid ${C.accent + "44"}`,
+            color: C.accent, borderRadius: 6, padding: "8px 12px", fontSize: 12, cursor: "pointer",
+            fontFamily: "inherit", marginBottom: 8,
+          }}>+ Use custom: "{query}"</button>
+        )}
+        {Object.entries(groups).map(([cat, exercises]) => (
+          <div key={cat} style={{ marginBottom: 8 }}>
+            <div style={{ color: C.dim, fontSize: 9, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase", padding: "4px 0 2px" }}>{cat}</div>
+            {exercises.map(ex => (
+              <button key={ex.name} onClick={() => { onAdd(ex); onClose(); }} style={{
+                display: "block", width: "100%", textAlign: "left", background: "none",
+                border: "none", borderBottom: `1px solid ${C.border}`, color: C.text,
+                padding: "8px 4px", fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = C.accent}
+              onMouseLeave={e => e.currentTarget.style.color = C.text}
+              >{ex.name}</button>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ProgressChart({ data }) {
   if (!data || data.length < 1) return (
     <div style={{ color: C.dim, fontSize: 13, textAlign: "center", padding: 40 }}>
@@ -435,11 +604,14 @@ export default function App() {
   const [activeDay, setActiveDay] = useState("mon");
   const [view, setView] = useState("workout");
   const [week, setWeek] = useState(1);
+  const [editMode, setEditMode] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   const saveTimeout = useRef(null);
 
   useEffect(() => {
     const saved = loadData();
     const d = saved || emptyState();
+    if (!d.program) d.program = {};
     setData(d);
     setWeek(d.weekNum || 1);
   }, []);
@@ -454,9 +626,10 @@ export default function App() {
     if (!data) return null;
     const sk = sessionKey(dayKey, week);
     if (data.sessions[sk]) return data.sessions[sk];
-    const day = PROGRAM[dayKey];
+    const prog = getProgram(data, dayKey);
+    if (!prog) return {};
     const session = {};
-    day.exercises.forEach(ex => { session[ex.id] = buildEmptySets(ex); });
+    prog.exercises.forEach(ex => { session[ex.id] = buildEmptySets(ex); });
     return session;
   }, [data, week]);
 
@@ -484,6 +657,44 @@ export default function App() {
   const updateMeals = useCallback((dayKey, meals) => {
     persist({ ...data, meals: { ...(data.meals || {}), [`meals_${dayKey}_w${week}`]: meals } });
   }, [data, week, persist]);
+
+  const handleAddExercise = useCallback((dayKey, ex) => {
+    const prog = getProgram(data, dayKey);
+    const newEx = { id: `custom_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: ex.name, heavy: false, sets: 3, reps: "8-10", startLbs: 0, note: "" };
+    const updated = { ...prog, exercises: [...prog.exercises, newEx] };
+    persist({ ...data, program: { ...(data.program || {}), [dayKey]: updated } });
+  }, [data, persist]);
+
+  const handleRemoveExercise = useCallback((dayKey, exId) => {
+    const prog = getProgram(data, dayKey);
+    const updated = { ...prog, exercises: prog.exercises.filter(e => e.id !== exId) };
+    const sk = sessionKey(dayKey, week);
+    const currentSession = data.sessions[sk] ? { ...data.sessions[sk] } : {};
+    delete currentSession[exId];
+    persist({ ...data, program: { ...(data.program || {}), [dayKey]: updated }, sessions: { ...data.sessions, [sk]: currentSession } });
+  }, [data, week, persist]);
+
+  const handleAddSet = useCallback((dayKey, exId) => {
+    const sk = sessionKey(dayKey, week);
+    const session = { ...getSession(dayKey) };
+    const sets = session[exId] || [];
+    const last = sets[sets.length - 1];
+    session[exId] = [...sets, { lbs: last ? last.lbs : 0, reps: 0, rpe: null, painBicep: false, painShoulder: false }];
+    const prog = getProgram(data, dayKey);
+    const updated = { ...prog, exercises: prog.exercises.map(e => e.id === exId ? { ...e, sets: session[exId].length } : e) };
+    persist({ ...data, sessions: { ...data.sessions, [sk]: session }, program: { ...(data.program || {}), [dayKey]: updated } });
+  }, [data, week, getSession, persist]);
+
+  const handleRemoveSet = useCallback((dayKey, exId) => {
+    const sk = sessionKey(dayKey, week);
+    const session = { ...getSession(dayKey) };
+    const sets = session[exId] || [];
+    if (sets.length <= 1) return;
+    session[exId] = sets.slice(0, -1);
+    const prog = getProgram(data, dayKey);
+    const updated = { ...prog, exercises: prog.exercises.map(e => e.id === exId ? { ...e, sets: session[exId].length } : e) };
+    persist({ ...data, sessions: { ...data.sessions, [sk]: session }, program: { ...(data.program || {}), [dayKey]: updated } });
+  }, [data, week, getSession, persist]);
 
   const getRehabDone = useCallback((dayKey, rehabId) => {
     if (!data) return false;
@@ -573,7 +784,7 @@ export default function App() {
 
   const activeDayMeta = ALL_DAYS.find(d => d.key === activeDay);
   const isRestDay = activeDayMeta?.rest ?? false;
-  const day = isRestDay ? null : PROGRAM[activeDay];
+  const day = isRestDay ? null : getProgram(data, activeDay);
   const session = isRestDay ? null : getSession(activeDay);
   const pain = painCount();
 
@@ -647,7 +858,7 @@ export default function App() {
               const hasSteps = (data.steps[`steps_${dk}_w${week}`] || 0) > 0;
               const isActive = dk === activeDay;
               return (
-                <button key={dk} onClick={() => setActiveDay(dk)} style={{
+                <button key={dk} onClick={() => { setActiveDay(dk); setEditMode(false); setShowPicker(false); }} style={{
                   flex: "0 0 auto", minWidth: 44, padding: "8px 4px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
                   background: isActive ? C.surface2 : "transparent",
                   border: `1px solid ${isActive ? C.borderHi : C.border}`,
@@ -671,7 +882,16 @@ export default function App() {
             </>
           ) : (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 14px", color: C.text }}>{day.title}</h2>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: C.text }}>{day.title}</h2>
+                <button onClick={() => { setEditMode(e => !e); setShowPicker(false); }} style={{
+                  background: editMode ? C.accentDim + "33" : C.surface,
+                  border: `1px solid ${editMode ? C.accent : C.border}`,
+                  color: editMode ? C.accent : C.muted,
+                  borderRadius: 6, padding: "4px 12px", fontSize: 11,
+                  cursor: "pointer", fontFamily: "inherit", fontWeight: 600,
+                }}>{editMode ? "Done" : "Edit"}</button>
+              </div>
 
               <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
 
@@ -680,9 +900,24 @@ export default function App() {
               </div>
               {day.exercises.map(ex => (
                 <ExerciseCard key={ex.id} exercise={ex} isRehab={false}
-                  sets={session ? session[ex.id] : buildEmptySets(ex)}
-                  onUpdate={sets => updateSet(activeDay, ex.id, sets)} />
+                  sets={session ? (session[ex.id] || buildEmptySets(ex)) : buildEmptySets(ex)}
+                  onUpdate={sets => updateSet(activeDay, ex.id, sets)}
+                  editMode={editMode}
+                  onRemove={() => handleRemoveExercise(activeDay, ex.id)}
+                  onAddSet={() => handleAddSet(activeDay, ex.id)}
+                  onRemoveSet={() => handleRemoveSet(activeDay, ex.id)}
+                />
               ))}
+              {editMode && (
+                <>
+                  <button onClick={() => setShowPicker(p => !p)} style={{
+                    width: "100%", background: "transparent", border: `1px dashed ${C.borderHi}`,
+                    color: C.accent, borderRadius: 8, padding: "8px 0", cursor: "pointer",
+                    fontSize: 13, fontFamily: "inherit", letterSpacing: 0.5, marginBottom: 8,
+                  }}>+ Add Exercise</button>
+                  {showPicker && <ExercisePicker onAdd={ex => handleAddExercise(activeDay, ex)} onClose={() => setShowPicker(false)} />}
+                </>
+              )}
 
               <div style={{ marginTop: 20, marginBottom: 8 }}>
                 <span style={{ color: C.rehab, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>REHAB PROTOCOL</span>
