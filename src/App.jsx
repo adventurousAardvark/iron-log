@@ -861,26 +861,45 @@ export default function App() {
       {view === "workout" && (
         <div style={{ padding: 16 }}>
           {/* DAY TABS */}
-          <div style={{ display: "flex", gap: 4, marginBottom: 16, overflowX: "auto", paddingBottom: 2 }}>
-            {ALL_DAYS.map(({ key: dk, label, rest }) => {
+          <div style={{ display: "flex", gap: 4, marginBottom: 8, overflowX: "auto", paddingBottom: 2 }}>
+            {ALL_DAYS.map(({ key: dk, label }) => {
               const sk = sessionKey(dk, week);
-              const hasLogs = !rest && data.sessions[sk] && Object.values(data.sessions[sk]).some(
+              const isWorkoutDay = (data.workoutDays || DEFAULT_WORKOUT_DAYS).includes(dk);
+              const hasLogs = isWorkoutDay && data.sessions[sk] && Object.values(data.sessions[sk]).some(
                 sets => Array.isArray(sets) && sets.some(s => s.reps > 0));
               const hasSteps = (data.steps[`steps_${dk}_w${week}`] || 0) > 0;
               const isActive = dk === activeDay;
               return (
                 <button key={dk} onClick={() => { setActiveDay(dk); setEditMode(false); setShowPicker(false); }} style={{
-                  flex: "0 0 auto", minWidth: 44, padding: "8px 4px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+                  flex: "0 0 auto", minWidth: 44, padding: "7px 4px 5px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
                   background: isActive ? C.surface2 : "transparent",
                   border: `1px solid ${isActive ? C.borderHi : C.border}`,
-                  color: isActive ? C.text : rest ? C.dim : C.muted,
+                  color: isActive ? C.text : isWorkoutDay ? C.muted : C.dim,
                   fontSize: 12, fontWeight: 600, position: "relative",
+                  borderBottom: `3px solid ${isWorkoutDay ? (isActive ? C.accent : C.accentDim + "66") : "transparent"}`,
                 }}>
                   {label}
-                  {!(data.workoutDays || DEFAULT_WORKOUT_DAYS).includes(dk) && <div style={{ fontSize: 8, color: C.dim, marginTop: 1 }}>REST</div>}
-                  {(hasLogs || hasSteps) && <span style={{ position: "absolute", top: 4, right: 5, width: 5, height: 5,
+                  {(hasLogs || hasSteps) && <span style={{ position: "absolute", top: 3, right: 4, width: 4, height: 4,
                     borderRadius: "50%", background: hasLogs ? C.success : C.steps }} />}
                 </button>
+              );
+            })}
+          </div>
+
+          {/* WORKOUT / REST TOGGLE */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            {["workout", "rest"].map(type => {
+              const active = type === "workout" ? !isRestDay : isRestDay;
+              return (
+                <button key={type} onClick={() => {
+                  if ((type === "workout") === isRestDay) { toggleWorkoutDay(activeDay); setEditMode(false); setShowPicker(false); }
+                }} style={{
+                  padding: "4px 14px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.5, textTransform: "uppercase",
+                  background: active ? (type === "workout" ? C.accent + "22" : C.surface) : "transparent",
+                  border: `1px solid ${active ? (type === "workout" ? C.accent : C.border) : C.border}`,
+                  color: active ? (type === "workout" ? C.accent : C.muted) : C.dim,
+                }}>{type}</button>
               );
             })}
           </div>
@@ -889,11 +908,6 @@ export default function App() {
             <>
               <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
               <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={false} />
-              <button onClick={() => toggleWorkoutDay(activeDay)} style={{
-                width: "100%", background: "transparent", border: `1px dashed ${C.borderHi}`,
-                color: C.muted, borderRadius: 8, padding: "10px 0", cursor: "pointer",
-                fontSize: 13, fontFamily: "inherit", letterSpacing: 0.5, marginTop: 8,
-              }}>+ Add Workout</button>
             </>
           ) : (
             <>
@@ -902,13 +916,6 @@ export default function App() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>EXERCISES</span>
                 <div style={{ display: "flex", gap: 6 }}>
-                  {editMode && (
-                    <button onClick={() => { toggleWorkoutDay(activeDay); setEditMode(false); setShowPicker(false); }} style={{
-                      background: "transparent", border: `1px solid ${C.danger + "66"}`,
-                      color: C.danger, borderRadius: 6, padding: "3px 10px", fontSize: 10,
-                      cursor: "pointer", fontFamily: "inherit", fontWeight: 600,
-                    }}>Remove Workout</button>
-                  )}
                   <button onClick={() => { setEditMode(e => !e); setShowPicker(false); }} style={{
                     background: editMode ? C.accentDim + "33" : C.surface,
                     border: `1px solid ${editMode ? C.accent : C.border}`,
