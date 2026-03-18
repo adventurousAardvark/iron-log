@@ -198,13 +198,16 @@ function exportData(d) {
   URL.revokeObjectURL(url);
 }
 
+const DEFAULT_WORKOUT_DAYS = ["mon", "wed", "fri", "sat"];
+
 function emptyState() {
-  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1, program: {} };
+  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1, program: {}, workoutDays: DEFAULT_WORKOUT_DAYS };
 }
 
 function getProgram(data, dayKey) {
   if (data && data.program && data.program[dayKey]) return data.program[dayKey];
-  return PROGRAM[dayKey] || null;
+  if (PROGRAM[dayKey]) return PROGRAM[dayKey];
+  return { title: "", exercises: [], rehab: [] };
 }
 
 function calcKcal(m) {
@@ -612,6 +615,7 @@ export default function App() {
     const saved = loadData();
     const d = saved || emptyState();
     if (!d.program) d.program = {};
+    if (!d.workoutDays) d.workoutDays = DEFAULT_WORKOUT_DAYS;
     setData(d);
     setWeek(d.weekNum || 1);
   }, []);
@@ -695,6 +699,13 @@ export default function App() {
     const updated = { ...prog, exercises: prog.exercises.map(e => e.id === exId ? { ...e, sets: session[exId].length } : e) };
     persist({ ...data, sessions: { ...data.sessions, [sk]: session }, program: { ...(data.program || {}), [dayKey]: updated } });
   }, [data, week, getSession, persist]);
+
+  const toggleWorkoutDay = useCallback((dayKey) => {
+    const current = data.workoutDays || DEFAULT_WORKOUT_DAYS;
+    const isWorkout = current.includes(dayKey);
+    const newDays = isWorkout ? current.filter(d => d !== dayKey) : [...current, dayKey];
+    persist({ ...data, workoutDays: newDays });
+  }, [data, persist]);
 
   const getRehabDone = useCallback((dayKey, rehabId) => {
     if (!data) return false;
@@ -783,7 +794,7 @@ export default function App() {
   }
 
   const activeDayMeta = ALL_DAYS.find(d => d.key === activeDay);
-  const isRestDay = activeDayMeta?.rest ?? false;
+  const isRestDay = !(data.workoutDays || DEFAULT_WORKOUT_DAYS).includes(activeDay);
   const day = isRestDay ? null : getProgram(data, activeDay);
   const session = isRestDay ? null : getSession(activeDay);
   const pain = painCount();
@@ -866,7 +877,7 @@ export default function App() {
                   fontSize: 12, fontWeight: 600, position: "relative",
                 }}>
                   {label}
-                  {rest && <div style={{ fontSize: 8, color: C.dim, marginTop: 1 }}>REST</div>}
+                  {!(data.workoutDays || DEFAULT_WORKOUT_DAYS).includes(dk) && <div style={{ fontSize: 8, color: C.dim, marginTop: 1 }}>REST</div>}
                   {(hasLogs || hasSteps) && <span style={{ position: "absolute", top: 4, right: 5, width: 5, height: 5,
                     borderRadius: "50%", background: hasLogs ? C.success : C.steps }} />}
                 </button>
@@ -876,28 +887,38 @@ export default function App() {
 
           {isRestDay ? (
             <>
-              <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 14px", color: C.muted }}>Rest Day — {activeDayMeta.label}</h2>
               <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
               <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={false} />
+              <button onClick={() => toggleWorkoutDay(activeDay)} style={{
+                width: "100%", background: "transparent", border: `1px dashed ${C.borderHi}`,
+                color: C.muted, borderRadius: 8, padding: "10px 0", cursor: "pointer",
+                fontSize: 13, fontFamily: "inherit", letterSpacing: 0.5, marginTop: 8,
+              }}>+ Add Workout</button>
             </>
           ) : (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: C.text }}>{day.title}</h2>
-                <button onClick={() => { setEditMode(e => !e); setShowPicker(false); }} style={{
-                  background: editMode ? C.accentDim + "33" : C.surface,
-                  border: `1px solid ${editMode ? C.accent : C.border}`,
-                  color: editMode ? C.accent : C.muted,
-                  borderRadius: 6, padding: "4px 12px", fontSize: 11,
-                  cursor: "pointer", fontFamily: "inherit", fontWeight: 600,
-                }}>{editMode ? "Done" : "Edit"}</button>
-              </div>
-
               <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
 
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                 <span style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>EXERCISES</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {editMode && (
+                    <button onClick={() => { toggleWorkoutDay(activeDay); setEditMode(false); setShowPicker(false); }} style={{
+                      background: "transparent", border: `1px solid ${C.danger + "66"}`,
+                      color: C.danger, borderRadius: 6, padding: "3px 10px", fontSize: 10,
+                      cursor: "pointer", fontFamily: "inherit", fontWeight: 600,
+                    }}>Remove Workout</button>
+                  )}
+                  <button onClick={() => { setEditMode(e => !e); setShowPicker(false); }} style={{
+                    background: editMode ? C.accentDim + "33" : C.surface,
+                    border: `1px solid ${editMode ? C.accent : C.border}`,
+                    color: editMode ? C.accent : C.muted,
+                    borderRadius: 6, padding: "3px 10px", fontSize: 10,
+                    cursor: "pointer", fontFamily: "inherit", fontWeight: 600,
+                  }}>{editMode ? "Done" : "Edit"}</button>
+                </div>
               </div>
+
               {day.exercises.map(ex => (
                 <ExerciseCard key={ex.id} exercise={ex} isRehab={false}
                   sets={session ? (session[ex.id] || buildEmptySets(ex)) : buildEmptySets(ex)}
