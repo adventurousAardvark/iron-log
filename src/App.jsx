@@ -82,6 +82,26 @@ const CHART_LIFTS = [
 
 const STEP_GOAL = 6000;
 
+const DAY_OFFSETS = { mon: 0, tue: 1, wed: 2, thu: 3, fri: 4, sat: 5, sun: 6 };
+
+function getThisMonday() {
+  const d = new Date();
+  const day = d.getDay();
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getDayDate(startDate, weekNum, dayKey) {
+  const d = new Date(startDate);
+  d.setDate(d.getDate() + (weekNum - 1) * 7 + DAY_OFFSETS[dayKey]);
+  return d;
+}
+
+function fmtDate(d) {
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 const EXERCISE_DB = [
   // Legs
   { name: "Barbell Squat", category: "Legs" },
@@ -201,7 +221,7 @@ function exportData(d) {
 const DEFAULT_WORKOUT_DAYS = ["mon", "wed", "fri", "sat"];
 
 function emptyState() {
-  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1, program: {}, workoutDays: DEFAULT_WORKOUT_DAYS, mealLibrary: [] };
+  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1, program: {}, workoutDays: DEFAULT_WORKOUT_DAYS, mealLibrary: [], bodyWeight: {}, startDate: getThisMonday().toISOString() };
 }
 
 function getProgram(data, dayKey) {
@@ -743,6 +763,69 @@ function ProgressChart({ data }) {
   );
 }
 
+function CaloriesChart({ data: appData }) {
+  if (!appData) return null;
+  const points = [];
+  for (let w = 1; w <= (appData.weekNum || 1); w++) {
+    for (const { key: dk } of ALL_DAYS) {
+      const meals = (appData.meals || {})[`meals_${dk}_w${w}`] || [];
+      const kcal = meals.reduce((sum, m) => sum + Math.round(calcKcal(m) * (m.serving || 1)), 0);
+      if (kcal > 0) {
+        const date = appData.startDate ? getDayDate(appData.startDate, w, dk) : null;
+        points.push({ label: date ? fmtDate(date) : `W${w} ${dk.toUpperCase()}`, kcal });
+      }
+    }
+  }
+  if (points.length < 1) return (
+    <div style={{ color: C.dim, fontSize: 13, textAlign: "center", padding: 40 }}>Log meals to see this chart</div>
+  );
+  return (
+    <div style={{ width: "100%", height: 280 }}>
+      <ResponsiveContainer>
+        <LineChart data={points} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+          <XAxis dataKey="label" stroke={C.dim} fontSize={10} tickLine={false} />
+          <YAxis stroke={C.dim} fontSize={10} tickLine={false} axisLine={false} />
+          <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 8, color: C.text, fontSize: 12 }}
+            formatter={val => [`${val} kcal`, "Calories"]} />
+          <Line type="monotone" dataKey="kcal" name="Calories" stroke={C.warn} strokeWidth={2} dot={{ r: 3, fill: C.warn }} connectNulls />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function BodyWeightChart({ data: appData }) {
+  if (!appData) return null;
+  const points = [];
+  for (let w = 1; w <= (appData.weekNum || 1); w++) {
+    for (const { key: dk } of ALL_DAYS) {
+      const bw = (appData.bodyWeight || {})[`bw_${dk}_w${w}`] || null;
+      if (bw) {
+        const date = appData.startDate ? getDayDate(appData.startDate, w, dk) : null;
+        points.push({ label: date ? fmtDate(date) : `W${w} ${dk.toUpperCase()}`, bw });
+      }
+    }
+  }
+  if (points.length < 1) return (
+    <div style={{ color: C.dim, fontSize: 13, textAlign: "center", padding: 40 }}>Log body weight to see this chart</div>
+  );
+  return (
+    <div style={{ width: "100%", height: 280 }}>
+      <ResponsiveContainer>
+        <LineChart data={points} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+          <XAxis dataKey="label" stroke={C.dim} fontSize={10} tickLine={false} />
+          <YAxis stroke={C.dim} fontSize={10} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
+          <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 8, color: C.text, fontSize: 12 }}
+            formatter={val => [`${val} lbs`, "Body Weight"]} />
+          <Line type="monotone" dataKey="bw" name="Body Weight" stroke={C.steps} strokeWidth={2} dot={{ r: 3, fill: C.steps }} connectNulls />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 /* ════════════════════════════════════════════
    MAIN APP
    ════════════════════════════════════════════ */
@@ -754,6 +837,7 @@ export default function App() {
   const [week, setWeek] = useState(1);
   const [editMode, setEditMode] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [progressTab, setProgressTab] = useState("lifts");
   const saveTimeout = useRef(null);
 
   useEffect(() => {
@@ -762,6 +846,8 @@ export default function App() {
     if (!d.program) d.program = {};
     if (!d.workoutDays) d.workoutDays = DEFAULT_WORKOUT_DAYS;
     if (!d.mealLibrary) d.mealLibrary = [];
+    if (!d.bodyWeight) d.bodyWeight = {};
+    if (!d.startDate) d.startDate = getThisMonday().toISOString();
     setData(d);
     setWeek(d.weekNum || 1);
   }, []);
@@ -862,6 +948,15 @@ export default function App() {
     const k = `${rehabId}_${dayKey}_w${week}`;
     const rd = { ...(data.rehabDone || {}), [k]: !((data.rehabDone || {})[k]) };
     persist({ ...data, rehabDone: rd });
+  }, [data, week, persist]);
+
+  const getBodyWeight = useCallback((dayKey) => {
+    if (!data) return "";
+    return (data.bodyWeight || {})[`bw_${dayKey}_w${week}`] || "";
+  }, [data, week]);
+
+  const updateBodyWeight = useCallback((dayKey, val) => {
+    persist({ ...data, bodyWeight: { ...(data.bodyWeight || {}), [`bw_${dayKey}_w${week}`]: val } });
   }, [data, week, persist]);
 
   const changeWeek = (dir) => {
@@ -1032,8 +1127,8 @@ export default function App() {
             })}
           </div>
 
-          {/* WORKOUT / REST TOGGLE */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+          {/* WORKOUT / REST TOGGLE + BODY WEIGHT + DATE */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
             {["workout", "rest"].map(type => {
               const active = type === "workout" ? !isRestDay : isRestDay;
               return (
@@ -1048,6 +1143,27 @@ export default function App() {
                 }}>{type}</button>
               );
             })}
+            <div style={{ flex: 1 }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+              <input
+                type="number"
+                placeholder="wt"
+                value={getBodyWeight(activeDay)}
+                step="0.1"
+                onChange={e => updateBodyWeight(activeDay, Number(e.target.value) || "")}
+                style={{
+                  width: 64, background: C.surface, border: `1px solid ${C.border}`, color: C.steps,
+                  borderRadius: 6, padding: "4px 6px", fontSize: 13,
+                  fontFamily: "'JetBrains Mono',monospace", outline: "none", textAlign: "center",
+                }}
+              />
+              <span style={{ color: C.dim, fontSize: 11 }}>lbs</span>
+            </div>
+            {data.startDate && (
+              <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", minWidth: 52, textAlign: "right" }}>
+                {fmtDate(getDayDate(data.startDate, week, activeDay))}
+              </span>
+            )}
           </div>
 
           {isRestDay ? (
@@ -1125,45 +1241,96 @@ export default function App() {
       {/* ─── PROGRESS VIEW ─── */}
       {view === "progress" && (
         <div style={{ padding: 16 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>Main Lift Progression</h2>
-          <span style={{ color: C.muted, fontSize: 12 }}>Top working weight per week</span>
-
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginTop: 14 }}>
-            <ProgressChart data={chartData()} />
+          {/* PROGRESS SUB-TABS */}
+          <div style={{ display: "flex", gap: 4, marginBottom: 16, overflowX: "auto" }}>
+            {[
+              { k: "lifts", l: "Lifts" },
+              { k: "calories", l: "Calories" },
+              { k: "bodyweight", l: "Body Weight" },
+              { k: "history", l: "History" },
+              { k: "pain", l: "Pain" },
+            ].map(t => (
+              <button key={t.k} onClick={() => setProgressTab(t.k)} style={{
+                flex: "0 0 auto", padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit", letterSpacing: 0.3,
+                background: progressTab === t.k ? C.accent + "22" : "transparent",
+                border: `1px solid ${progressTab === t.k ? C.accent : C.border}`,
+                color: progressTab === t.k ? C.accent : C.muted,
+              }}>{t.l}</button>
+            ))}
           </div>
 
-          {/* SESSION HISTORY */}
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: "24px 0 12px" }}>Session History</h3>
+          {progressTab === "lifts" && (
+            <>
+              <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>Main Lift Progression</h2>
+              <span style={{ color: C.muted, fontSize: 12 }}>Top working weight per week</span>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginTop: 14 }}>
+                <ProgressChart data={chartData()} />
+              </div>
+            </>
+          )}
+
+          {progressTab === "calories" && (
+            <>
+              <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>Daily Calories</h2>
+              <span style={{ color: C.muted, fontSize: 12 }}>Total kcal logged per day</span>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginTop: 14 }}>
+                <CaloriesChart data={data} />
+              </div>
+            </>
+          )}
+
+          {progressTab === "bodyweight" && (
+            <>
+              <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>Body Weight</h2>
+              <span style={{ color: C.muted, fontSize: 12 }}>Daily weigh-in (lbs)</span>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginTop: 14 }}>
+                <BodyWeightChart data={data} />
+              </div>
+            </>
+          )}
+
+          {progressTab === "history" && (<>
           {Array.from({ length: Math.min(week, 16) }, (_, i) => week - i).map(w => {
-            const weekDays = ALL_DAYS.map(({ key: dk, label, rest }) => {
+            const weekDays = ALL_DAYS.map(({ key: dk, label }) => {
               const sk = sessionKey(dk, w);
               const steps = (data.steps[`steps_${dk}_w${w}`] || 0);
-              return { label, rest, session: rest ? null : data.sessions[sk], steps };
+              const meals = (data.meals || {})[`meals_${dk}_w${w}`] || [];
+              const kcal = meals.reduce((sum, m) => sum + Math.round(calcKcal(m) * (m.serving || 1)), 0);
+              const bw = (data.bodyWeight || {})[`bw_${dk}_w${w}`] || null;
+              const date = data.startDate ? getDayDate(data.startDate, w, dk) : null;
+              return { label, dk, session: data.sessions[sk], steps, kcal, bw, date };
             });
-            const hasAny = weekDays.some(wd => (!wd.rest && wd.session && Object.values(wd.session).some(
-              sets => Array.isArray(sets) && sets.some(s => s.reps > 0))) || wd.steps > 0);
+            const hasAny = weekDays.some(wd => (wd.session && Object.values(wd.session).some(
+              sets => Array.isArray(sets) && sets.some(s => s.reps > 0))) || wd.steps > 0 || wd.kcal > 0 || wd.bw);
             if (!hasAny && w !== week) return null;
             return (
               <div key={w} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
                 <div style={{ color: C.accent, fontSize: 12, fontWeight: 600, fontFamily: "'JetBrains Mono',monospace", marginBottom: 10 }}>
                   WEEK {w} {w === week && <span style={{ color: C.muted, fontWeight: 400 }}>← current</span>}
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
                   {weekDays.map(wd => {
-                    const completed = !wd.rest && wd.session && Object.values(wd.session).some(
+                    const completed = wd.session && Object.values(wd.session).some(
                       sets => Array.isArray(sets) && sets.some(s => s.reps > 0));
                     const stepsLogged = wd.steps >= STEP_GOAL;
-                    const color = completed ? C.success : stepsLogged ? C.steps : C.dim;
+                    const dotColor = completed ? C.success : stepsLogged ? C.steps : C.dim;
                     return (
-                      <div key={wd.label} style={{ textAlign: "center" }}>
-                        <div style={{ color: C.dim, fontSize: 9, fontWeight: 600, marginBottom: 4 }}>{wd.label}</div>
+                      <div key={wd.label} style={{
+                        textAlign: "center", background: C.surface2, borderRadius: 8, padding: "6px 2px",
+                        border: `1px solid ${completed ? C.success + "44" : C.border}`,
+                      }}>
+                        <div style={{ color: C.dim, fontSize: 9, fontWeight: 600 }}>{wd.label}</div>
+                        {wd.date && <div style={{ color: C.dim, fontSize: 9, marginBottom: 4 }}>{fmtDate(wd.date)}</div>}
                         <div style={{
-                          width: 28, height: 28, borderRadius: "50%", margin: "0 auto",
-                          background: (completed || stepsLogged) ? color + "22" : C.border,
-                          border: `2px solid ${color}`,
+                          width: 22, height: 22, borderRadius: "50%", margin: "0 auto 4px",
+                          background: (completed || stepsLogged) ? dotColor + "22" : C.border,
+                          border: `2px solid ${dotColor}`,
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          color, fontSize: 11,
+                          color: dotColor, fontSize: 10,
                         }}>{completed ? "✓" : stepsLogged ? "◯" : "–"}</div>
+                        {wd.kcal > 0 && <div style={{ color: C.warn, fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{wd.kcal}</div>}
+                        {wd.bw && <div style={{ color: C.steps, fontSize: 9, fontFamily: "'JetBrains Mono',monospace" }}>{wd.bw}lb</div>}
                       </div>
                     );
                   })}
@@ -1172,31 +1339,36 @@ export default function App() {
             );
           })}
 
-          {/* PAIN SUMMARY */}
-          <h3 style={{ fontSize: 14, fontWeight: 600, margin: "24px 0 12px" }}>Pain Flag Summary — Week {week}</h3>
-          <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ color: C.danger, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{pain.bicep}</div>
-                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Bicep flags</div>
+          </>)}
+
+          {progressTab === "pain" && (
+            <>
+              <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 12px" }}>Pain Flag Summary — Week {week}</h2>
+              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ color: C.danger, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{pain.bicep}</div>
+                    <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Bicep flags</div>
+                  </div>
+                  <div style={{ textAlign: "center" }}>
+                    <div style={{ color: C.warn, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{pain.shoulder}</div>
+                    <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Shoulder flags</div>
+                  </div>
+                </div>
+                {(pain.bicep > 3 || pain.shoulder > 3) && (
+                  <div style={{ marginTop: 14, padding: 10, background: C.danger + "11", borderRadius: 8,
+                    color: C.danger, fontSize: 12, textAlign: "center" }}>
+                    Multiple pain flags detected — bring this up in your next chat for adjustments
+                  </div>
+                )}
+                {pain.bicep === 0 && pain.shoulder === 0 && (
+                  <div style={{ marginTop: 10, color: C.success, fontSize: 12, textAlign: "center" }}>
+                    No pain flags this week ✓
+                  </div>
+                )}
               </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ color: C.warn, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{pain.shoulder}</div>
-                <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Shoulder flags</div>
-              </div>
-            </div>
-            {(pain.bicep > 3 || pain.shoulder > 3) && (
-              <div style={{ marginTop: 14, padding: 10, background: C.danger + "11", borderRadius: 8,
-                color: C.danger, fontSize: 12, textAlign: "center" }}>
-                Multiple pain flags detected — bring this up in your next chat for adjustments
-              </div>
-            )}
-            {pain.bicep === 0 && pain.shoulder === 0 && (
-              <div style={{ marginTop: 10, color: C.success, fontSize: 12, textAlign: "center" }}>
-                No pain flags this week ✓
-              </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       )}
     </div>
