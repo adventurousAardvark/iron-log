@@ -201,7 +201,7 @@ function exportData(d) {
 const DEFAULT_WORKOUT_DAYS = ["mon", "wed", "fri", "sat"];
 
 function emptyState() {
-  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1, program: {}, workoutDays: DEFAULT_WORKOUT_DAYS };
+  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1, program: {}, workoutDays: DEFAULT_WORKOUT_DAYS, mealLibrary: [] };
 }
 
 function getProgram(data, dayKey) {
@@ -405,24 +405,126 @@ function StepTracker({ steps, onUpdate }) {
   );
 }
 
-function MacroSection({ meals, onUpdate, isTrainingDay }) {
+function MealPicker({ library, onSelect, onNewBlank, onClose }) {
+  const [query, setQuery] = useState("");
+  const filtered = library.filter(m => m.name.toLowerCase().includes(query.toLowerCase()));
+
+  return (
+    <div style={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <input
+          autoFocus
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Search saved meals…"
+          style={{
+            flex: 1, background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8,
+            padding: "8px 12px", fontSize: 13, fontFamily: "inherit", outline: "none",
+          }}
+        />
+        <button onClick={onClose} style={{ background: "none", border: "none", color: C.dim, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
+      </div>
+      <div style={{ maxHeight: 220, overflowY: "auto" }}>
+        {filtered.length === 0 && (
+          <div style={{ color: C.dim, fontSize: 12, padding: "6px 2px" }}>No saved meals{query ? " matching that search" : ""}.</div>
+        )}
+        {filtered.map((m, i) => (
+          <button key={i} onClick={() => onSelect(m)} style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            width: "100%", background: "transparent", border: `1px solid ${C.border}`,
+            borderRadius: 8, padding: "8px 12px", marginBottom: 4, cursor: "pointer",
+            fontFamily: "inherit", color: C.text, textAlign: "left",
+          }}>
+            <span style={{ fontSize: 13 }}>{m.name}</span>
+            <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace" }}>
+              {m.protein}p · {m.carbs}c · {m.fat}f · {calcKcal(m)} kcal
+            </span>
+          </button>
+        ))}
+      </div>
+      <button onClick={onNewBlank} style={{
+        marginTop: 8, width: "100%", background: "transparent", border: `1px dashed ${C.borderHi}`,
+        color: C.accent, borderRadius: 8, padding: "7px 0", cursor: "pointer",
+        fontSize: 12, fontFamily: "inherit",
+      }}>+ new blank meal</button>
+    </div>
+  );
+}
+
+function ManageLibrary({ library, onDelete, onClose }) {
+  return (
+    <div style={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ color: C.warn, fontSize: 12, fontWeight: 600, letterSpacing: 1 }}>MEAL LIBRARY</span>
+        <button onClick={onClose} style={{ background: "none", border: "none", color: C.dim, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
+      </div>
+      {library.length === 0 && (
+        <div style={{ color: C.dim, fontSize: 12, padding: "4px 2px" }}>No saved meals yet.</div>
+      )}
+      {library.map((m, i) => (
+        <div key={i} style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", marginBottom: 4,
+        }}>
+          <div>
+            <span style={{ color: C.text, fontSize: 13 }}>{m.name}</span>
+            <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", marginLeft: 10 }}>
+              {m.protein}p · {m.carbs}c · {m.fat}f · {calcKcal(m)} kcal
+            </span>
+          </div>
+          <button onClick={() => onDelete(m.name)} style={{
+            background: "none", border: "none", color: C.dim, fontSize: 14,
+            cursor: "pointer", padding: "0 4px", lineHeight: 1,
+          }}>✕</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MacroSection({ meals, onUpdate, isTrainingDay, mealLibrary, onUpdateLibrary }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const [showManage, setShowManage] = useState(false);
   const goal = isTrainingDay ? 2800 : 2000;
 
-  const totals = meals.reduce((acc, m) => ({
-    protein: acc.protein + (m.protein || 0),
-    carbs: acc.carbs + (m.carbs || 0),
-    fiber: acc.fiber + (m.fiber || 0),
-    fat: acc.fat + (m.fat || 0),
-    satFat: acc.satFat + (m.satFat || 0),
-    kcal: acc.kcal + calcKcal(m),
-  }), { protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, kcal: 0 });
+  const totals = meals.reduce((acc, m) => {
+    const s = m.serving || 1;
+    return {
+      protein: acc.protein + (m.protein || 0) * s,
+      carbs: acc.carbs + (m.carbs || 0) * s,
+      fiber: acc.fiber + (m.fiber || 0) * s,
+      fat: acc.fat + (m.fat || 0) * s,
+      satFat: acc.satFat + (m.satFat || 0) * s,
+      kcal: acc.kcal + calcKcal(m) * s,
+    };
+  }, { protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, kcal: 0 });
 
   const pct = Math.min((totals.kcal / goal) * 100, 100);
   const over = totals.kcal > goal;
 
-  const addMeal = () => onUpdate([...meals, { id: Date.now(), name: "", protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0 }]);
+  const addBlankMeal = () => {
+    onUpdate([...meals, { id: Date.now(), name: "", protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, serving: 1 }]);
+    setShowPicker(false);
+  };
+  const addFromLibrary = (libMeal) => {
+    onUpdate([...meals, { ...libMeal, id: Date.now(), serving: 1 }]);
+    setShowPicker(false);
+  };
   const updateMeal = (id, field, val) => onUpdate(meals.map(m => m.id === id ? { ...m, [field]: val } : m));
   const removeMeal = (id) => onUpdate(meals.filter(m => m.id !== id));
+
+  const saveToLibrary = (meal) => {
+    const entry = { name: meal.name, protein: meal.protein || 0, carbs: meal.carbs || 0, fiber: meal.fiber || 0, fat: meal.fat || 0, satFat: meal.satFat || 0 };
+    const existing = (mealLibrary || []).findIndex(m => m.name === meal.name);
+    const updated = existing >= 0
+      ? mealLibrary.map((m, i) => i === existing ? entry : m)
+      : [...(mealLibrary || []), entry];
+    onUpdateLibrary(updated);
+  };
+
+  const deleteFromLibrary = (name) => {
+    onUpdateLibrary((mealLibrary || []).filter(m => m.name !== name));
+  };
 
   const inp = {
     background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6,
@@ -431,11 +533,11 @@ function MacroSection({ meals, onUpdate, isTrainingDay }) {
   };
 
   const macroFields = [
-    { key: "protein", label: "PRO", color: C.accent },
-    { key: "carbs", label: "CARB", color: C.warn },
-    { key: "fiber", label: "FIBER", color: C.success },
     { key: "fat", label: "FAT", color: C.rehab },
     { key: "satFat", label: "SFAT", color: C.muted },
+    { key: "carbs", label: "CARB", color: C.warn },
+    { key: "fiber", label: "FIBER", color: C.success },
+    { key: "protein", label: "PRO", color: C.accent },
   ];
 
   return (
@@ -443,7 +545,13 @@ function MacroSection({ meals, onUpdate, isTrainingDay }) {
       {/* Header + calorie bar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <span style={{ color: C.warn, fontSize: 13, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>◯ NUTRITION</span>
-        <span style={{ color: C.muted, fontSize: 11 }}>{isTrainingDay ? "Training" : "Rest"} · target {goal.toLocaleString()} kcal</span>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <button onClick={() => { setShowManage(m => !m); setShowPicker(false); }} style={{
+            background: "none", border: "none", color: C.dim, fontSize: 11,
+            cursor: "pointer", fontFamily: "inherit", padding: 0, textDecoration: "underline",
+          }}>manage library</button>
+          <span style={{ color: C.muted, fontSize: 11 }}>{isTrainingDay ? "Training" : "Rest"} · target {goal.toLocaleString()} kcal</span>
+        </div>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <span style={{ color: over ? C.danger : C.text, fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", minWidth: 56 }}>
@@ -464,7 +572,7 @@ function MacroSection({ meals, onUpdate, isTrainingDay }) {
           {macroFields.map(f => (
             <div key={f.key} style={{ textAlign: "center", minWidth: 44 }}>
               <div style={{ color: f.color, fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>{f.label}</div>
-              <div style={{ color: C.text, fontSize: 13, fontFamily: "'JetBrains Mono',monospace" }}>{totals[f.key]}g</div>
+              <div style={{ color: C.text, fontSize: 13, fontFamily: "'JetBrains Mono',monospace" }}>{Math.round(totals[f.key])}g</div>
             </div>
           ))}
         </div>
@@ -472,28 +580,43 @@ function MacroSection({ meals, onUpdate, isTrainingDay }) {
 
       {/* Column headers */}
       {meals.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 52px 52px 52px 52px 52px 44px 24px", gap: 4,
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 52px 52px 52px 52px 52px 44px 28px 24px", gap: 4,
           color: C.dim, fontSize: 9, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase",
           padding: "0 0 4px", marginBottom: 2 }}>
           <span>MEAL</span>
+          <span style={{ textAlign: "center" }}>×SRV</span>
           {macroFields.map(f => <span key={f.key} style={{ textAlign: "center", color: f.color }}>{f.label}</span>)}
           <span style={{ textAlign: "center" }}>KCAL</span>
+          <span style={{ textAlign: "center" }}>LIB</span>
           <span></span>
         </div>
       )}
 
       {/* Meal rows */}
       {meals.map(m => (
-        <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 52px 52px 52px 52px 52px 44px 24px", gap: 4, marginBottom: 5, alignItems: "center" }}>
+        <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 40px 52px 52px 52px 52px 52px 44px 28px 24px", gap: 4, marginBottom: 5, alignItems: "center" }}>
           <input placeholder="meal / food" value={m.name} style={{ ...inp, textAlign: "left", padding: "5px 8px", fontSize: 12 }}
             onChange={e => updateMeal(m.id, "name", e.target.value)} />
+          <input type="number" placeholder="1" value={m.serving ?? 1} style={{ ...inp, color: C.steps }}
+            step="0.25" min="0.25"
+            onChange={e => updateMeal(m.id, "serving", Number(e.target.value) || 1)} />
           {macroFields.map(f => (
             <input key={f.key} type="number" placeholder="0" value={m[f.key] || ""} style={inp}
               onChange={e => updateMeal(m.id, f.key, Number(e.target.value) || 0)} />
           ))}
           <span style={{ color: C.muted, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", textAlign: "center" }}>
-            {calcKcal(m)}
+            {Math.round(calcKcal(m) * (m.serving || 1))}
           </span>
+          <button
+            onClick={() => saveToLibrary(m)}
+            disabled={!m.name.trim()}
+            title="Save to library"
+            style={{
+              background: "none", border: `1px solid ${m.name.trim() ? C.warn + "88" : C.border}`,
+              color: m.name.trim() ? C.warn : C.dim, fontSize: 10,
+              cursor: m.name.trim() ? "pointer" : "default", borderRadius: 4,
+              padding: "2px 0", lineHeight: 1, fontFamily: "inherit", width: "100%",
+            }}>↑</button>
           <button onClick={() => removeMeal(m.id)} style={{
             background: "none", border: "none", color: C.dim, fontSize: 14, cursor: "pointer",
             padding: 0, lineHeight: 1, fontFamily: "inherit",
@@ -501,13 +624,35 @@ function MacroSection({ meals, onUpdate, isTrainingDay }) {
         </div>
       ))}
 
+      {showManage && (
+        <ManageLibrary
+          library={mealLibrary || []}
+          onDelete={deleteFromLibrary}
+          onClose={() => setShowManage(false)}
+        />
+      )}
+
+      {showPicker && (
+        <MealPicker
+          library={mealLibrary || []}
+          onSelect={addFromLibrary}
+          onNewBlank={addBlankMeal}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
+
       {/* Add row button */}
-      <button onClick={addMeal} style={{
-        marginTop: meals.length > 0 ? 8 : 0,
-        background: "transparent", border: `1px dashed ${C.border}`, color: C.muted,
-        borderRadius: 8, padding: "7px 0", width: "100%", cursor: "pointer",
-        fontSize: 13, fontFamily: "inherit", letterSpacing: 0.5,
-      }}>+ add meal</button>
+      {!showPicker && !showManage && (
+        <button onClick={() => {
+          if ((mealLibrary || []).length > 0) setShowPicker(true);
+          else addBlankMeal();
+        }} style={{
+          marginTop: meals.length > 0 ? 8 : 0,
+          background: "transparent", border: `1px dashed ${C.border}`, color: C.muted,
+          borderRadius: 8, padding: "7px 0", width: "100%", cursor: "pointer",
+          fontSize: 13, fontFamily: "inherit", letterSpacing: 0.5,
+        }}>+ add meal</button>
+      )}
     </div>
   );
 }
@@ -616,6 +761,7 @@ export default function App() {
     const d = saved || emptyState();
     if (!d.program) d.program = {};
     if (!d.workoutDays) d.workoutDays = DEFAULT_WORKOUT_DAYS;
+    if (!d.mealLibrary) d.mealLibrary = [];
     setData(d);
     setWeek(d.weekNum || 1);
   }, []);
@@ -907,7 +1053,7 @@ export default function App() {
           {isRestDay ? (
             <>
               <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
-              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={false} />
+              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={false} mealLibrary={data.mealLibrary} onUpdateLibrary={lib => persist({ ...data, mealLibrary: lib })} />
             </>
           ) : (
             <>
@@ -959,7 +1105,7 @@ export default function App() {
               <div style={{ marginTop: 20, marginBottom: 8 }}>
                 <span style={{ color: C.warn, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>NUTRITION</span>
               </div>
-              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={true} />
+              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={true} mealLibrary={data.mealLibrary} onUpdateLibrary={lib => persist({ ...data, mealLibrary: lib })} />
 
               <div style={{ marginTop: 8, padding: 14, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
                 <div style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5, marginBottom: 6 }}>SESSION NOTES</div>
