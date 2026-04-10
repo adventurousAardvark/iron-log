@@ -14,10 +14,6 @@ const PROGRAM = {
       { id: "calf_raise", name: "Standing Calf Raise", heavy: false, sets: 4, reps: "12-15", startLbs: 100, note: "Full ROM, pause at top." },
       { id: "plank_m", name: "Weighted Plank", heavy: false, sets: 3, reps: "30-45s", startLbs: 0, note: "Add plate when able." },
     ],
-    rehab: [
-      { id: "rb_iso_flex", name: "Isometric Elbow Flexion Hold", sets: 3, reps: "30-45s", note: "Bicep rehab · Neutral grip · Start 5 lbs" },
-      { id: "rb_iso_sup", name: "Isometric Supination Hold", sets: 3, reps: "30s", note: "Bicep rehab · Band or light DB" },
-    ]
   },
   wed: {
     label: "WED", title: "Heavy DB Press · Light Push", exercises: [
@@ -27,10 +23,6 @@ const PROGRAM = {
       { id: "lat_raise", name: "DB Lateral Raise", heavy: false, sets: 3, reps: "12-15", startLbs: 15, note: "Controlled tempo." },
       { id: "cable_fly", name: "Cable Fly", heavy: false, sets: 3, reps: "10-12", startLbs: 25, note: "Slight forward lean." },
     ],
-    rehab: [
-      { id: "rs_band", name: "Band Pull-Apart", sets: 3, reps: "15-20", note: "Shoulder rehab · Thumbs up · Scapular retraction" },
-      { id: "rs_ext_rot", name: "Sidelying External Rotation", sets: 3, reps: "15", note: "Shoulder rehab · 2-5 lb DB · Elbow pinned" },
-    ]
   },
   fri: {
     label: "FRI", title: "Heavy Deadlift · Light Squat", exercises: [
@@ -40,13 +32,9 @@ const PROGRAM = {
       { id: "hip_thrust", name: "Barbell Hip Thrust", heavy: false, sets: 3, reps: "8-10", startLbs: 95, note: "Pause at top." },
       { id: "hang_knee", name: "Hanging Knee Raise (Straps)", heavy: false, sets: 3, reps: "10-15", startLbs: 0, note: "Ab straps — no bicep load." },
     ],
-    rehab: [
-      { id: "rb_iso_flex2", name: "Isometric Elbow Flexion Hold", sets: 3, reps: "30-45s", note: "Bicep rehab · Neutral grip" },
-      { id: "rb_iso_sup2", name: "Isometric Supination Hold", sets: 3, reps: "30s", note: "Bicep rehab" },
-    ]
   },
   sat: {
-    label: "SAT", title: "Heavy Incline · Light DB Press · Pull + Rehab", exercises: [
+    label: "SAT", title: "Heavy Incline · Light DB Press · Pull", exercises: [
       { id: "incline_h", name: "Incline DB Press", heavy: true, sets: 3, reps: "6-8", startLbs: 40, note: "Heavy. 30° incline." },
       { id: "db_press_l", name: "DB Press (Flat)", heavy: false, sets: 3, reps: "8-10", startLbs: 35, note: "Light. Tempo 3/0/3/0." },
       { id: "db_row", name: "DB Row (Neutral Grip)", heavy: false, sets: 3, reps: "8-10", startLbs: 45, note: "Capped at pain-free weight." },
@@ -54,12 +42,6 @@ const PROGRAM = {
       { id: "face_pull", name: "Cable Face Pull", heavy: false, sets: 3, reps: "15-20", startLbs: 20, note: "External rotation at top." },
       { id: "rear_delt", name: "Reverse Pec Deck", heavy: false, sets: 3, reps: "12-15", startLbs: 40, note: "Shoulders down and back." },
     ],
-    rehab: [
-      { id: "rs_wall", name: "Scapular Wall Slides", sets: 3, reps: "10", note: "Shoulder rehab · W to Y position" },
-      { id: "rs_cable_er", name: "Cable External Rotation", sets: 3, reps: "12-15", note: "Shoulder rehab · Elbow at side" },
-      { id: "rs_ytw", name: "Prone Y-T-W Raises", sets: 2, reps: "10 each", note: "Shoulder rehab · Light DBs 2-5 lbs" },
-      { id: "rs_band2", name: "Band Pull-Apart", sets: 3, reps: "15-20", note: "Shoulder rehab · Thumbs up" },
-    ]
   },
 };
 
@@ -72,12 +54,6 @@ const ALL_DAYS = [
   { key: "fri", label: "FRI", rest: false },
   { key: "sat", label: "SAT", rest: false },
   { key: "sun", label: "SUN", rest: true },
-];
-const CHART_LIFTS = [
-  { id: "squat_h", label: "Squat", color: "#67d4f4" },
-  { id: "deadlift_h", label: "Deadlift", color: "#f59e0b" },
-  { id: "db_press_h", label: "DB Press", color: "#c5f467" },
-  { id: "incline_h", label: "Incline", color: "#a78bfa" },
 ];
 
 const STEP_GOAL = 6000;
@@ -182,30 +158,34 @@ const EXERCISE_DB = [
   { name: "Decline Crunch", category: "Core" },
   { name: "Russian Twist", category: "Core" },
   { name: "Dead Bug", category: "Core" },
-  // Rehab
-  { name: "Isometric Elbow Flexion Hold", category: "Rehab" },
-  { name: "Isometric Supination Hold", category: "Rehab" },
-  { name: "Sidelying External Rotation", category: "Rehab" },
-  { name: "Cable External Rotation", category: "Rehab" },
-  { name: "Scapular Wall Slides", category: "Rehab" },
-  { name: "Prone Y-T-W Raises", category: "Rehab" },
 ];
 
 /* ════════════════════════════════════════════
    STORAGE — localStorage + JSON file backup
    ════════════════════════════════════════════ */
 
-const STORAGE_KEY = "iron-log-data";
+const API_URL = "/api/data";
 
-function loadData() {
+async function loadData() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch { return null; }
+    const res = await fetch(API_URL);
+    return await res.json();
+  } catch (e) {
+    console.error("load err (server down?):", e);
+    // Fallback to localStorage if server unavailable
+    try {
+      const raw = localStorage.getItem("iron-log-data");
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
 }
 
 function saveData(d) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch (e) { console.error("save err", e); }
+  fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(d),
+  }).catch(e => console.error("save err:", e));
 }
 
 function exportData(d) {
@@ -221,13 +201,13 @@ function exportData(d) {
 const DEFAULT_WORKOUT_DAYS = ["mon", "wed", "fri", "sat"];
 
 function emptyState() {
-  return { sessions: {}, steps: {}, meals: {}, rehabDone: {}, weekNum: 1, program: {}, workoutDays: DEFAULT_WORKOUT_DAYS, mealLibrary: [], bodyWeight: {}, startDate: getThisMonday().toISOString() };
+  return { sessions: {}, steps: {}, meals: {}, weekNum: 1, program: {}, workoutDays: DEFAULT_WORKOUT_DAYS, mealLibrary: [], bodyWeight: {}, metrics: {}, startDate: getThisMonday().toISOString() };
 }
 
 function getProgram(data, dayKey) {
   if (data && data.program && data.program[dayKey]) return data.program[dayKey];
   if (PROGRAM[dayKey]) return PROGRAM[dayKey];
-  return { title: "", exercises: [], rehab: [] };
+  return { title: "", exercises: [] };
 }
 
 function calcKcal(m) {
@@ -295,12 +275,12 @@ function SetRow({ set, idx, onChange }) {
   );
 }
 
-function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabToggle, editMode, onRemove, onAddSet, onRemoveSet }) {
+function ExerciseCard({ exercise, sets, onUpdate, editMode, onRemove, onAddSet, onRemoveSet }) {
   const [open, setOpen] = useState(false);
   const hasData = sets && sets.some(s => s.reps > 0);
   const hasPain = sets && sets.some(s => s.painBicep || s.painShoulder);
-  const tagColor = isRehab ? C.rehab : exercise.heavy ? C.accent : C.muted;
-  const tagLabel = isRehab ? "REHAB" : exercise.heavy ? "HEAVY" : "LIGHT · 3/0/3/0";
+  const tagColor = exercise.heavy ? C.accent : C.muted;
+  const tagLabel = exercise.heavy ? "HEAVY" : "LIGHT · 3/0/3/0";
   const currentSets = sets || [];
 
   return (
@@ -309,20 +289,14 @@ function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabTog
       border: `1px solid ${hasPain ? C.danger + "66" : C.border}`,
       borderRadius: 10, marginBottom: 8, overflow: "hidden", transition: "border-color .2s",
     }}>
-      <div onClick={() => !isRehab && setOpen(!open)} style={{
-        padding: "12px 16px", cursor: isRehab ? "default" : "pointer",
+      <div onClick={() => setOpen(!open)} style={{
+        padding: "12px 16px", cursor: "pointer",
         display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-          {isRehab ? (
-            <input type="checkbox" checked={!!rehabDone} onChange={onRehabToggle}
-              style={{ width: 16, height: 16, accentColor: C.rehab, cursor: "pointer", flexShrink: 0 }} />
-          ) : (
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: hasData ? C.success : C.dim, flexShrink: 0 }} />
-          )}
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: hasData ? C.success : C.dim, flexShrink: 0 }} />
           <span style={{
-            color: isRehab && rehabDone ? C.dim : C.text, fontSize: 14, fontWeight: 500,
-            textDecoration: isRehab && rehabDone ? "line-through" : "none",
+            color: C.text, fontSize: 14, fontWeight: 500,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}>{exercise.name}</span>
           <span style={{
@@ -330,27 +304,18 @@ function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabTog
             background: tagColor + "15", padding: "2px 8px", borderRadius: 4, flexShrink: 0,
           }}>{tagLabel}</span>
         </div>
-        {isRehab && (
-          <span style={{ color: C.rehab, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>
-            {exercise.sets}×{exercise.reps}
-          </span>
-        )}
-        {!isRehab && (
-          <>
-            <span style={{ color: C.muted, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>
-              {currentSets.length}×{exercise.reps}
-            </span>
-            <span style={{ color: C.dim, fontSize: 16, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }}>▾</span>
-          </>
-        )}
-        {editMode && !isRehab && onRemove && (
+        <span style={{ color: C.muted, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", flexShrink: 0 }}>
+          {currentSets.length}×{exercise.reps}
+        </span>
+        <span style={{ color: C.dim, fontSize: 16, transform: open ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }}>▾</span>
+        {editMode && onRemove && (
           <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{
             background: "none", border: "none", color: C.danger, fontSize: 17,
             cursor: "pointer", padding: "0 0 0 6px", lineHeight: 1, flexShrink: 0,
           }}>×</button>
         )}
       </div>
-      {open && !isRehab && (
+      {open && (
         <div style={{ padding: "0 16px 14px", borderTop: `1px solid ${C.border}` }}>
           <div style={{ padding: "8px 0 4px", color: C.muted, fontSize: 12, fontStyle: "italic" }}>{exercise.note}</div>
           {currentSets.length > 0 && (
@@ -382,11 +347,6 @@ function ExerciseCard({ exercise, sets, onUpdate, isRehab, rehabDone, onRehabTog
               }}>− Remove Set</button>
             </div>
           )}
-        </div>
-      )}
-      {isRehab && (
-        <div style={{ padding: "0 16px 10px" }}>
-          <div style={{ color: C.muted, fontSize: 11, fontStyle: "italic" }}>{exercise.note}</div>
         </div>
       )}
     </div>
@@ -425,48 +385,194 @@ function StepTracker({ steps, onUpdate }) {
   );
 }
 
-function MealPicker({ library, onSelect, onNewBlank, onClose }) {
-  const [query, setQuery] = useState("");
-  const filtered = library.filter(m => m.name.toLowerCase().includes(query.toLowerCase()));
+const METRIC_TYPES = [
+  { key: "blood_sugar", label: "Blood Sugar", unit: "mg/dL", step: "1", hasTime: true },
+  { key: "ketones_ppm", label: "Ketones (Breath)", unit: "ppm", step: "1", hasTime: true },
+  { key: "ketones_mmol", label: "Ketones (Blood)", unit: "mmol/L", step: "0.1", hasTime: true },
+  { key: "blood_pressure_sys", label: "Blood Pressure (Sys)", unit: "mmHg", step: "1", hasTime: true },
+  { key: "blood_pressure_dia", label: "Blood Pressure (Dia)", unit: "mmHg", step: "1", hasTime: true },
+  { key: "heart_rate", label: "Heart Rate", unit: "bpm", step: "1", hasTime: true },
+  { key: "body_temp", label: "Body Temperature", unit: "°F", step: "0.1", hasTime: true },
+  { key: "body_fat", label: "Body Fat", unit: "%", step: "0.1", hasTime: false },
+  { key: "waist", label: "Waist", unit: "in", step: "0.25", hasTime: false },
+];
 
+function MetricPicker({ onAdd, onClose }) {
   return (
-    <div style={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
-      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-        <input
-          autoFocus
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Search saved meals…"
-          style={{
-            flex: 1, background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8,
-            padding: "8px 12px", fontSize: 13, fontFamily: "inherit", outline: "none",
-          }}
-        />
+    <div style={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 10, padding: 14, marginTop: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <span style={{ color: C.rehab, fontSize: 11, fontWeight: 600, letterSpacing: 1 }}>ADD METRIC</span>
         <button onClick={onClose} style={{ background: "none", border: "none", color: C.dim, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
       </div>
-      <div style={{ maxHeight: 220, overflowY: "auto" }}>
-        {filtered.length === 0 && (
-          <div style={{ color: C.dim, fontSize: 12, padding: "6px 2px" }}>No saved meals{query ? " matching that search" : ""}.</div>
-        )}
-        {filtered.map((m, i) => (
-          <button key={i} onClick={() => onSelect(m)} style={{
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        {METRIC_TYPES.map(mt => (
+          <button key={mt.key} onClick={() => { onAdd(mt.key); onClose(); }} style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
             width: "100%", background: "transparent", border: `1px solid ${C.border}`,
-            borderRadius: 8, padding: "8px 12px", marginBottom: 4, cursor: "pointer",
+            borderRadius: 8, padding: "8px 12px", cursor: "pointer",
             fontFamily: "inherit", color: C.text, textAlign: "left",
-          }}>
-            <span style={{ fontSize: 13 }}>{m.name}</span>
-            <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace" }}>
-              {m.protein}p · {m.carbs}c · {m.fat}f · {calcKcal(m)} kcal
-            </span>
+          }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = C.rehab}
+          onMouseLeave={e => e.currentTarget.style.borderColor = C.border}
+          >
+            <span style={{ fontSize: 13 }}>{mt.label}</span>
+            <span style={{ color: C.dim, fontSize: 11 }}>{mt.unit}</span>
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function nowTime() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function MetricsSection({ bodyWeight, onBodyWeightChange, metrics, onMetricsChange }) {
+  const [showPicker, setShowPicker] = useState(false);
+  const entries = Array.isArray(metrics) ? metrics : [];
+
+  const inp = {
+    background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8,
+    padding: "6px 8px", fontSize: 13, fontFamily: "'JetBrains Mono',monospace", outline: "none", textAlign: "center",
+  };
+
+  const addMetric = (typeKey) => {
+    const mt = METRIC_TYPES.find(m => m.key === typeKey);
+    const entry = { id: Date.now(), type: typeKey, value: "", time: mt.hasTime ? nowTime() : null };
+    onMetricsChange([...entries, entry]);
+  };
+
+  const updateEntry = (id, field, val) => onMetricsChange(entries.map(e => e.id === id ? { ...e, [field]: val } : e));
+  const removeEntry = (id) => onMetricsChange(entries.filter(e => e.id !== id));
+
+  return (
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ color: C.rehab, fontSize: 13, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase" }}>
+          ◯ METRICS
+        </span>
+      </div>
+
+      {/* Body weight — always shown */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
+        <span style={{ color: C.dim, fontSize: 11, fontWeight: 600, letterSpacing: 0.5, minWidth: 90 }}>Body Weight</span>
+        <input type="number" placeholder="0" value={bodyWeight || ""} step="0.1" style={{ ...inp, width: 90 }}
+          onChange={e => onBodyWeightChange(Number(e.target.value) || "")} />
+        <span style={{ color: C.dim, fontSize: 11 }}>lbs</span>
+      </div>
+
+      {/* Column headers */}
+      {entries.length > 0 && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 80px 56px 24px", gap: 6, marginTop: 12,
+          color: C.dim, fontSize: 9, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase",
+          padding: "0 0 4px",
+        }}>
+          <span>METRIC</span>
+          <span style={{ textAlign: "center" }}>VALUE</span>
+          <span style={{ textAlign: "center" }}>TIME</span>
+          <span></span>
+        </div>
+      )}
+
+      {/* Metric entries */}
+      {entries.map(entry => {
+        const mt = METRIC_TYPES.find(m => m.key === entry.type) || { label: entry.type, unit: "", step: "1", hasTime: true };
+        return (
+          <div key={entry.id} style={{ display: "grid", gridTemplateColumns: "1fr 80px 56px 24px", gap: 6, marginBottom: 5, alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ color: C.text, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mt.label}</span>
+              <span style={{ color: C.dim, fontSize: 10, flexShrink: 0 }}>{mt.unit}</span>
+            </div>
+            <input type="number" placeholder="0" value={entry.value || ""} step={mt.step} style={inp}
+              onChange={e => updateEntry(entry.id, "value", Number(e.target.value) || "")} />
+            {mt.hasTime ? (
+              <input type="time" value={entry.time || ""} style={{ ...inp, fontSize: 11, padding: "6px 2px" }}
+                onChange={e => updateEntry(entry.id, "time", e.target.value)} />
+            ) : (
+              <span></span>
+            )}
+            <button onClick={() => removeEntry(entry.id)} style={{
+              background: "none", border: "none", color: C.dim, fontSize: 14, cursor: "pointer",
+              padding: 0, lineHeight: 1, fontFamily: "inherit",
+            }}>✕</button>
+          </div>
+        );
+      })}
+
+      {/* Add button / picker */}
+      {showPicker ? (
+        <MetricPicker onAdd={addMetric} onClose={() => setShowPicker(false)} />
+      ) : (
+        <button onClick={() => setShowPicker(true)} style={{
+          marginTop: entries.length > 0 ? 8 : 12, width: "100%", background: "transparent",
+          border: `1px dashed ${C.border}`, color: C.muted, borderRadius: 8, padding: "7px 0",
+          cursor: "pointer", fontSize: 13, fontFamily: "inherit", letterSpacing: 0.5,
+        }}>+ add metric</button>
+      )}
+    </div>
+  );
+}
+
+/* --- Nutrition helpers --- */
+function itemMacros(item) {
+  const s = item.serving || 1;
+  return { protein: (item.protein || 0) * s, carbs: (item.carbs || 0) * s, fiber: (item.fiber || 0) * s, fat: (item.fat || 0) * s, satFat: (item.satFat || 0) * s, kcal: calcKcal(item) * s };
+}
+function mealTotals(meal) {
+  const items = meal.items || [];
+  if (items.length === 0) return itemMacros(meal); // legacy flat meal
+  return items.reduce((acc, it) => {
+    const m = itemMacros(it);
+    return { protein: acc.protein + m.protein, carbs: acc.carbs + m.carbs, fiber: acc.fiber + m.fiber, fat: acc.fat + m.fat, satFat: acc.satFat + m.satFat, kcal: acc.kcal + m.kcal };
+  }, { protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, kcal: 0 });
+}
+function migrateMeal(m) {
+  // Convert old flat meals to grouped format
+  if (m.items) return m;
+  const { id, name, serving, ...macros } = m;
+  return { id, name: name || "", items: [{ id: Date.now(), name: name || "", ...macros, serving: serving || 1 }] };
+}
+
+function ItemPicker({ library, onSelect, onNewBlank, onClose, label }) {
+  const [query, setQuery] = useState("");
+  const items = library.filter(m => m.name.toLowerCase().includes(query.toLowerCase()));
+  return (
+    <div style={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <input autoFocus value={query} onChange={e => setQuery(e.target.value)}
+          placeholder={`Search ${label}…`}
+          style={{ flex: 1, background: C.bg, border: `1px solid ${C.border}`, color: C.text, borderRadius: 8, padding: "8px 12px", fontSize: 13, fontFamily: "inherit", outline: "none" }} />
+        <button onClick={onClose} style={{ background: "none", border: "none", color: C.dim, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
+      </div>
+      <div style={{ maxHeight: 220, overflowY: "auto" }}>
+        {items.length === 0 && <div style={{ color: C.dim, fontSize: 12, padding: "6px 2px" }}>No saved {label}{query ? " matching that search" : ""}.</div>}
+        {items.map((m, i) => {
+          const t = m.items ? mealTotals(m) : itemMacros(m);
+          return (
+            <button key={i} onClick={() => onSelect(m)} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%",
+              background: "transparent", border: `1px solid ${C.border}`, borderRadius: 8,
+              padding: "8px 12px", marginBottom: 4, cursor: "pointer", fontFamily: "inherit", color: C.text, textAlign: "left",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {m.items && <span style={{ color: C.warn, fontSize: 9, fontWeight: 600, background: C.warn + "18", padding: "1px 5px", borderRadius: 3 }}>MEAL</span>}
+                <span style={{ fontSize: 13 }}>{m.name}</span>
+                {m.items && <span style={{ color: C.dim, fontSize: 10 }}>({m.items.length} items)</span>}
+              </div>
+              <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace" }}>
+                {Math.round(t.protein)}p · {Math.round(t.carbs)}c · {Math.round(t.fat)}f · {Math.round(t.kcal)} kcal
+              </span>
+            </button>
+          );
+        })}
+      </div>
       <button onClick={onNewBlank} style={{
         marginTop: 8, width: "100%", background: "transparent", border: `1px dashed ${C.borderHi}`,
-        color: C.accent, borderRadius: 8, padding: "7px 0", cursor: "pointer",
-        fontSize: 12, fontFamily: "inherit",
-      }}>+ new blank meal</button>
+        color: C.accent, borderRadius: 8, padding: "7px 0", cursor: "pointer", fontSize: 12, fontFamily: "inherit",
+      }}>+ new blank {label}</button>
     </div>
   );
 }
@@ -475,73 +581,182 @@ function ManageLibrary({ library, onDelete, onClose }) {
   return (
     <div style={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 10, padding: 14, marginBottom: 8 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-        <span style={{ color: C.warn, fontSize: 12, fontWeight: 600, letterSpacing: 1 }}>MEAL LIBRARY</span>
+        <span style={{ color: C.warn, fontSize: 12, fontWeight: 600, letterSpacing: 1 }}>LIBRARY</span>
         <button onClick={onClose} style={{ background: "none", border: "none", color: C.dim, fontSize: 18, cursor: "pointer", padding: "0 4px" }}>×</button>
       </div>
-      {library.length === 0 && (
-        <div style={{ color: C.dim, fontSize: 12, padding: "4px 2px" }}>No saved meals yet.</div>
-      )}
-      {library.map((m, i) => (
-        <div key={i} style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", marginBottom: 4,
-        }}>
-          <div>
-            <span style={{ color: C.text, fontSize: 13 }}>{m.name}</span>
-            <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", marginLeft: 10 }}>
-              {m.protein}p · {m.carbs}c · {m.fat}f · {calcKcal(m)} kcal
-            </span>
+      {library.length === 0 && <div style={{ color: C.dim, fontSize: 12, padding: "4px 2px" }}>No saved items yet.</div>}
+      {library.map((m, i) => {
+        const t = m.items ? mealTotals(m) : itemMacros(m);
+        return (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 12px", marginBottom: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {m.items && <span style={{ color: C.warn, fontSize: 9, fontWeight: 600, background: C.warn + "18", padding: "1px 5px", borderRadius: 3 }}>MEAL</span>}
+              <span style={{ color: C.text, fontSize: 13 }}>{m.name}</span>
+              {m.items && <span style={{ color: C.dim, fontSize: 10 }}>({m.items.length} items)</span>}
+              <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", marginLeft: 6 }}>
+                {Math.round(t.protein)}p · {Math.round(t.carbs)}c · {Math.round(t.fat)}f · {Math.round(t.kcal)} kcal
+              </span>
+            </div>
+            <button onClick={() => onDelete(m.name)} style={{ background: "none", border: "none", color: C.dim, fontSize: 14, cursor: "pointer", padding: "0 4px", lineHeight: 1 }}>✕</button>
           </div>
-          <button onClick={() => onDelete(m.name)} style={{
-            background: "none", border: "none", color: C.dim, fontSize: 14,
-            cursor: "pointer", padding: "0 4px", lineHeight: 1,
-          }}>✕</button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function MacroSection({ meals, onUpdate, isTrainingDay, mealLibrary, onUpdateLibrary }) {
+function MealCard({ meal, onUpdate, onRemove, onSaveToLibrary, onSaveItemToLibrary, itemLibrary, inp, macroFields }) {
+  const [open, setOpen] = useState(false);
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const items = meal.items || [];
+  const t = mealTotals(meal);
+
+  const updateItem = (itemId, field, val) => {
+    onUpdate({ ...meal, items: items.map(it => it.id === itemId ? { ...it, [field]: val } : it) });
+  };
+  const removeItem = (itemId) => {
+    onUpdate({ ...meal, items: items.filter(it => it.id !== itemId) });
+  };
+  const addBlankItem = () => {
+    onUpdate({ ...meal, items: [...items, { id: Date.now(), name: "", protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, serving: 1 }] });
+    setShowItemPicker(false);
+  };
+  const addItemFromLibrary = (libItem) => {
+    if (libItem.items) {
+      // Adding a saved meal's items
+      const newItems = libItem.items.map(it => ({ ...it, id: Date.now() + Math.random() }));
+      onUpdate({ ...meal, items: [...items, ...newItems] });
+    } else {
+      onUpdate({ ...meal, items: [...items, { ...libItem, id: Date.now(), serving: 1 }] });
+    }
+    setShowItemPicker(false);
+  };
+
+  return (
+    <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 8, overflow: "hidden", background: C.bg }}>
+      {/* Meal header row */}
+      <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 44px 28px 24px", gap: 4, padding: "8px 10px", alignItems: "center", cursor: "pointer" }}
+        onClick={() => setOpen(!open)}>
+        <span style={{ color: C.dim, fontSize: 14, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s", textAlign: "center" }}>▸</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+          <input placeholder="Meal name" value={meal.name} style={{ ...inp, textAlign: "left", padding: "4px 8px", fontSize: 13, fontWeight: 600, flex: 1, background: "transparent", border: "none" }}
+            onClick={e => e.stopPropagation()}
+            onChange={e => onUpdate({ ...meal, name: e.target.value })} />
+          <span style={{ color: C.dim, fontSize: 10, flexShrink: 0 }}>{items.length} item{items.length !== 1 ? "s" : ""}</span>
+        </div>
+        <span style={{ color: C.muted, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", textAlign: "center" }}>
+          {Math.round(t.kcal)}
+        </span>
+        <button onClick={e => { e.stopPropagation(); onSaveToLibrary(); }} disabled={!meal.name.trim()} title="Save meal to library"
+          style={{ background: "none", border: `1px solid ${meal.name.trim() ? C.warn + "88" : C.border}`, color: meal.name.trim() ? C.warn : C.dim, fontSize: 10, cursor: meal.name.trim() ? "pointer" : "default", borderRadius: 4, padding: "2px 0", lineHeight: 1, fontFamily: "inherit", width: "100%" }}>↑</button>
+        <button onClick={e => { e.stopPropagation(); onRemove(); }} style={{ background: "none", border: "none", color: C.dim, fontSize: 14, cursor: "pointer", padding: 0, lineHeight: 1, fontFamily: "inherit" }}>✕</button>
+      </div>
+
+      {/* Macro summary bar */}
+      <div style={{ display: "flex", gap: 10, padding: "0 10px 8px 38px" }}>
+        {macroFields.map(f => (
+          <span key={f.key} style={{ color: f.color, fontSize: 10, fontFamily: "'JetBrains Mono',monospace" }}>
+            {f.label} {Math.round(t[f.key])}g
+          </span>
+        ))}
+      </div>
+
+      {/* Expanded: individual items */}
+      {open && (
+        <div style={{ borderTop: `1px solid ${C.border}`, padding: "8px 10px 10px 10px", background: C.surface }}>
+          {/* Item column headers */}
+          {items.length > 0 && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 48px 48px 48px 48px 48px 40px 24px 24px", gap: 3, color: C.dim, fontSize: 8, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", padding: "0 0 4px" }}>
+              <span>ITEM</span>
+              <span style={{ textAlign: "center" }}>×SRV</span>
+              {macroFields.map(f => <span key={f.key} style={{ textAlign: "center", color: f.color }}>{f.label}</span>)}
+              <span style={{ textAlign: "center" }}>KCAL</span>
+              <span style={{ textAlign: "center" }}>LIB</span>
+              <span></span>
+            </div>
+          )}
+          {items.map(it => (
+            <div key={it.id} style={{ display: "grid", gridTemplateColumns: "1fr 40px 48px 48px 48px 48px 48px 40px 24px 24px", gap: 3, marginBottom: 4, alignItems: "center" }}>
+              <input placeholder="ingredient" value={it.name} style={{ ...inp, textAlign: "left", padding: "4px 6px", fontSize: 11 }}
+                onChange={e => updateItem(it.id, "name", e.target.value)} />
+              <input type="number" placeholder="1" value={it.serving ?? 1} step="0.25" min="0.25" style={{ ...inp, color: C.steps, fontSize: 11 }}
+                onChange={e => updateItem(it.id, "serving", Number(e.target.value) || 1)} />
+              {macroFields.map(f => {
+                const s = it.serving || 1;
+                return (
+                <input key={f.key} type="number" placeholder="0" value={Math.round(((it[f.key] || 0) * s) * 10) / 10 || ""} style={{ ...inp, fontSize: 11 }}
+                  onChange={e => updateItem(it.id, f.key, (Number(e.target.value) || 0) / s)} />
+                );
+              })}
+              <span style={{ color: C.muted, fontSize: 10, fontFamily: "'JetBrains Mono',monospace", textAlign: "center" }}>
+                {Math.round(calcKcal(it) * (it.serving || 1))}
+              </span>
+              <button onClick={() => onSaveItemToLibrary(it)} disabled={!it.name.trim()} title="Save item to library"
+                style={{ background: "none", border: `1px solid ${it.name.trim() ? C.warn + "44" : C.border}`, color: it.name.trim() ? C.warn : C.dim, fontSize: 9, cursor: it.name.trim() ? "pointer" : "default", borderRadius: 3, padding: "1px 0", lineHeight: 1, fontFamily: "inherit", width: "100%" }}>↑</button>
+              <button onClick={() => removeItem(it.id)} style={{ background: "none", border: "none", color: C.dim, fontSize: 13, cursor: "pointer", padding: 0, lineHeight: 1, fontFamily: "inherit" }}>✕</button>
+            </div>
+          ))}
+
+          {showItemPicker ? (
+            <ItemPicker label="items" library={itemLibrary} onSelect={addItemFromLibrary} onNewBlank={addBlankItem} onClose={() => setShowItemPicker(false)} />
+          ) : (
+            <button onClick={() => {
+              if (itemLibrary.length > 0) setShowItemPicker(true);
+              else addBlankItem();
+            }} style={{
+              marginTop: 4, width: "100%", background: "transparent", border: `1px dashed ${C.border}`,
+              color: C.dim, borderRadius: 6, padding: "5px 0", cursor: "pointer", fontSize: 11, fontFamily: "inherit",
+            }}>+ add item</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MacroSection({ meals: rawMeals, onUpdate, isTrainingDay, mealLibrary, onUpdateLibrary }) {
   const [showPicker, setShowPicker] = useState(false);
   const [showManage, setShowManage] = useState(false);
   const goal = isTrainingDay ? 2800 : 2000;
 
+  // Migrate legacy flat meals to grouped format
+  const meals = rawMeals.map(migrateMeal);
+
   const totals = meals.reduce((acc, m) => {
-    const s = m.serving || 1;
-    return {
-      protein: acc.protein + (m.protein || 0) * s,
-      carbs: acc.carbs + (m.carbs || 0) * s,
-      fiber: acc.fiber + (m.fiber || 0) * s,
-      fat: acc.fat + (m.fat || 0) * s,
-      satFat: acc.satFat + (m.satFat || 0) * s,
-      kcal: acc.kcal + calcKcal(m) * s,
-    };
+    const t = mealTotals(m);
+    return { protein: acc.protein + t.protein, carbs: acc.carbs + t.carbs, fiber: acc.fiber + t.fiber, fat: acc.fat + t.fat, satFat: acc.satFat + t.satFat, kcal: acc.kcal + t.kcal };
   }, { protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, kcal: 0 });
 
   const pct = Math.min((totals.kcal / goal) * 100, 100);
   const over = totals.kcal > goal;
 
   const addBlankMeal = () => {
-    onUpdate([...meals, { id: Date.now(), name: "", protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, serving: 1 }]);
+    onUpdate([...meals, { id: Date.now(), name: "", items: [{ id: Date.now() + 1, name: "", protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, serving: 1 }] }]);
     setShowPicker(false);
   };
-  const addFromLibrary = (libMeal) => {
-    onUpdate([...meals, { ...libMeal, id: Date.now(), serving: 1 }]);
+  const addFromLibrary = (libEntry) => {
+    if (libEntry.items) {
+      // It's a saved meal — add as a full meal group
+      onUpdate([...meals, { ...libEntry, id: Date.now(), items: libEntry.items.map(it => ({ ...it, id: Date.now() + Math.random() })) }]);
+    } else {
+      // It's a single item — wrap it in a meal
+      onUpdate([...meals, { id: Date.now(), name: libEntry.name, items: [{ ...libEntry, id: Date.now() + 1, serving: 1 }] }]);
+    }
     setShowPicker(false);
   };
-  const updateMeal = (id, field, val) => onUpdate(meals.map(m => m.id === id ? { ...m, [field]: val } : m));
+  const updateMeal = (id, updated) => onUpdate(meals.map(m => m.id === id ? updated : m));
   const removeMeal = (id) => onUpdate(meals.filter(m => m.id !== id));
 
-  const saveToLibrary = (meal) => {
-    const entry = { name: meal.name, protein: meal.protein || 0, carbs: meal.carbs || 0, fiber: meal.fiber || 0, fat: meal.fat || 0, satFat: meal.satFat || 0 };
+  const saveMealToLibrary = (meal) => {
+    const entry = { name: meal.name, items: (meal.items || []).map(it => ({ name: it.name, protein: it.protein || 0, carbs: it.carbs || 0, fiber: it.fiber || 0, fat: it.fat || 0, satFat: it.satFat || 0, serving: it.serving || 1 })) };
     const existing = (mealLibrary || []).findIndex(m => m.name === meal.name);
-    const updated = existing >= 0
-      ? mealLibrary.map((m, i) => i === existing ? entry : m)
-      : [...(mealLibrary || []), entry];
-    onUpdateLibrary(updated);
+    onUpdateLibrary(existing >= 0 ? mealLibrary.map((m, i) => i === existing ? entry : m) : [...(mealLibrary || []), entry]);
   };
-
+  const saveItemToLibrary = (item) => {
+    const entry = { name: item.name, protein: item.protein || 0, carbs: item.carbs || 0, fiber: item.fiber || 0, fat: item.fat || 0, satFat: item.satFat || 0 };
+    const existing = (mealLibrary || []).findIndex(m => m.name === item.name && !m.items);
+    onUpdateLibrary(existing >= 0 ? mealLibrary.map((m, i) => i === existing ? entry : m) : [...(mealLibrary || []), entry]);
+  };
   const deleteFromLibrary = (name) => {
     onUpdateLibrary((mealLibrary || []).filter(m => m.name !== name));
   };
@@ -575,7 +790,7 @@ function MacroSection({ meals, onUpdate, isTrainingDay, mealLibrary, onUpdateLib
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
         <span style={{ color: over ? C.danger : C.text, fontSize: 22, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", minWidth: 56 }}>
-          {totals.kcal.toLocaleString()}
+          {Math.round(totals.kcal).toLocaleString()}
         </span>
         <div style={{ flex: 1 }}>
           <div style={{ height: 8, background: C.border, borderRadius: 4, overflow: "hidden" }}>
@@ -598,70 +813,28 @@ function MacroSection({ meals, onUpdate, isTrainingDay, mealLibrary, onUpdateLib
         </div>
       )}
 
-      {/* Column headers */}
-      {meals.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 40px 52px 52px 52px 52px 52px 44px 28px 24px", gap: 4,
-          color: C.dim, fontSize: 9, fontWeight: 600, letterSpacing: 0.8, textTransform: "uppercase",
-          padding: "0 0 4px", marginBottom: 2 }}>
-          <span>MEAL</span>
-          <span style={{ textAlign: "center" }}>×SRV</span>
-          {macroFields.map(f => <span key={f.key} style={{ textAlign: "center", color: f.color }}>{f.label}</span>)}
-          <span style={{ textAlign: "center" }}>KCAL</span>
-          <span style={{ textAlign: "center" }}>LIB</span>
-          <span></span>
-        </div>
-      )}
-
-      {/* Meal rows */}
+      {/* Meal cards */}
       {meals.map(m => (
-        <div key={m.id} style={{ display: "grid", gridTemplateColumns: "1fr 40px 52px 52px 52px 52px 52px 44px 28px 24px", gap: 4, marginBottom: 5, alignItems: "center" }}>
-          <input placeholder="meal / food" value={m.name} style={{ ...inp, textAlign: "left", padding: "5px 8px", fontSize: 12 }}
-            onChange={e => updateMeal(m.id, "name", e.target.value)} />
-          <input type="number" placeholder="1" value={m.serving ?? 1} style={{ ...inp, color: C.steps }}
-            step="0.25" min="0.25"
-            onChange={e => updateMeal(m.id, "serving", Number(e.target.value) || 1)} />
-          {macroFields.map(f => (
-            <input key={f.key} type="number" placeholder="0" value={m[f.key] || ""} style={inp}
-              onChange={e => updateMeal(m.id, f.key, Number(e.target.value) || 0)} />
-          ))}
-          <span style={{ color: C.muted, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", textAlign: "center" }}>
-            {Math.round(calcKcal(m) * (m.serving || 1))}
-          </span>
-          <button
-            onClick={() => saveToLibrary(m)}
-            disabled={!m.name.trim()}
-            title="Save to library"
-            style={{
-              background: "none", border: `1px solid ${m.name.trim() ? C.warn + "88" : C.border}`,
-              color: m.name.trim() ? C.warn : C.dim, fontSize: 10,
-              cursor: m.name.trim() ? "pointer" : "default", borderRadius: 4,
-              padding: "2px 0", lineHeight: 1, fontFamily: "inherit", width: "100%",
-            }}>↑</button>
-          <button onClick={() => removeMeal(m.id)} style={{
-            background: "none", border: "none", color: C.dim, fontSize: 14, cursor: "pointer",
-            padding: 0, lineHeight: 1, fontFamily: "inherit",
-          }}>✕</button>
-        </div>
+        <MealCard key={m.id} meal={m}
+          onUpdate={updated => updateMeal(m.id, updated)}
+          onRemove={() => removeMeal(m.id)}
+          onSaveToLibrary={() => saveMealToLibrary(m)}
+          onSaveItemToLibrary={it => saveItemToLibrary(it)}
+          itemLibrary={mealLibrary || []}
+          inp={inp}
+          macroFields={macroFields}
+        />
       ))}
 
       {showManage && (
-        <ManageLibrary
-          library={mealLibrary || []}
-          onDelete={deleteFromLibrary}
-          onClose={() => setShowManage(false)}
-        />
+        <ManageLibrary library={mealLibrary || []} onDelete={deleteFromLibrary} onClose={() => setShowManage(false)} />
       )}
 
       {showPicker && (
-        <MealPicker
-          library={mealLibrary || []}
-          onSelect={addFromLibrary}
-          onNewBlank={addBlankMeal}
-          onClose={() => setShowPicker(false)}
-        />
+        <ItemPicker label="meals" library={mealLibrary || []} onSelect={addFromLibrary} onNewBlank={addBlankMeal} onClose={() => setShowPicker(false)} />
       )}
 
-      {/* Add row button */}
+      {/* Add meal button */}
       {!showPicker && !showManage && (
         <button onClick={() => {
           if ((mealLibrary || []).length > 0) setShowPicker(true);
@@ -731,8 +904,8 @@ function ExercisePicker({ onAdd, onClose }) {
   );
 }
 
-function ProgressChart({ data }) {
-  if (!data || data.length < 1) return (
+function ProgressChart({ data, lifts }) {
+  if (!data || data.length < 1 || !lifts || lifts.length < 1) return (
     <div style={{ color: C.dim, fontSize: 13, textAlign: "center", padding: 40 }}>
       Log at least one session to see progress charts
     </div>
@@ -745,14 +918,14 @@ function ProgressChart({ data }) {
           <XAxis dataKey="week" stroke={C.dim} fontSize={11} tickLine={false} />
           <YAxis stroke={C.dim} fontSize={11} tickLine={false} axisLine={false} />
           <Tooltip contentStyle={{ background: C.surface2, border: `1px solid ${C.borderHi}`, borderRadius: 8, color: C.text, fontSize: 12 }} />
-          {CHART_LIFTS.map(l => (
+          {lifts.map(l => (
             <Line key={l.id} type="monotone" dataKey={l.id} name={l.label} stroke={l.color}
               strokeWidth={2} dot={{ r: 4, fill: l.color }} connectNulls />
           ))}
         </LineChart>
       </ResponsiveContainer>
-      <div style={{ display: "flex", gap: 16, justifyContent: "center", marginTop: 8 }}>
-        {CHART_LIFTS.map(l => (
+      <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
+        {lifts.map(l => (
           <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ width: 10, height: 3, background: l.color, borderRadius: 2 }} />
             <span style={{ color: C.muted, fontSize: 11 }}>{l.label}</span>
@@ -841,15 +1014,17 @@ export default function App() {
   const saveTimeout = useRef(null);
 
   useEffect(() => {
-    const saved = loadData();
-    const d = saved || emptyState();
-    if (!d.program) d.program = {};
-    if (!d.workoutDays) d.workoutDays = DEFAULT_WORKOUT_DAYS;
-    if (!d.mealLibrary) d.mealLibrary = [];
-    if (!d.bodyWeight) d.bodyWeight = {};
-    if (!d.startDate) d.startDate = getThisMonday().toISOString();
-    setData(d);
-    setWeek(d.weekNum || 1);
+    loadData().then(saved => {
+      const d = saved || emptyState();
+      if (!d.program) d.program = {};
+      if (!d.workoutDays) d.workoutDays = DEFAULT_WORKOUT_DAYS;
+      if (!d.mealLibrary) d.mealLibrary = [];
+      if (!d.bodyWeight) d.bodyWeight = {};
+      if (!d.metrics) d.metrics = {};
+      if (!d.startDate) d.startDate = getThisMonday().toISOString();
+      setData(d);
+      setWeek(d.weekNum || 1);
+    });
   }, []);
 
   const persist = useCallback((newData) => {
@@ -939,15 +1114,21 @@ export default function App() {
     persist({ ...data, workoutDays: newDays });
   }, [data, persist]);
 
-  const getRehabDone = useCallback((dayKey, rehabId) => {
-    if (!data) return false;
-    return !!(data.rehabDone || {})[`${rehabId}_${dayKey}_w${week}`];
+  const getMetrics = useCallback((dayKey) => {
+    if (!data) return [];
+    const raw = (data.metrics || {})[`metrics_${dayKey}_w${week}`];
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    // migrate old object format to array
+    const entries = [];
+    if (raw.bloodSugar) entries.push({ id: 1, type: "blood_sugar", value: raw.bloodSugar, time: "" });
+    if (raw.ketonesPpm) entries.push({ id: 2, type: "ketones_ppm", value: raw.ketonesPpm, time: "" });
+    if (raw.ketonesMmol) entries.push({ id: 3, type: "ketones_mmol", value: raw.ketonesMmol, time: "" });
+    return entries;
   }, [data, week]);
 
-  const toggleRehab = useCallback((dayKey, rehabId) => {
-    const k = `${rehabId}_${dayKey}_w${week}`;
-    const rd = { ...(data.rehabDone || {}), [k]: !((data.rehabDone || {})[k]) };
-    persist({ ...data, rehabDone: rd });
+  const updateMetrics = useCallback((dayKey, val) => {
+    persist({ ...data, metrics: { ...(data.metrics || {}), [`metrics_${dayKey}_w${week}`]: val } });
   }, [data, week, persist]);
 
   const getBodyWeight = useCallback((dayKey) => {
@@ -990,24 +1171,35 @@ export default function App() {
   };
 
   const chartData = useCallback(() => {
-    if (!data) return [];
+    if (!data) return { points: [], lifts: [] };
+    const liftMap = {};
     const points = [];
     for (let w = 1; w <= (data.weekNum || 1); w++) {
       const point = { week: `W${w}` };
-      CHART_LIFTS.forEach(lift => {
-        for (const dk of DAY_KEYS) {
-          const sk = sessionKey(dk, w);
-          const session = data.sessions[sk];
-          if (session && session[lift.id]) {
-            const sets = session[lift.id];
-            const maxLbs = Math.max(...sets.filter(s => s.reps > 0).map(s => s.lbs), 0);
-            if (maxLbs > 0) point[lift.id] = maxLbs;
+      for (const dk of DAY_KEYS) {
+        const sk = sessionKey(dk, w);
+        const session = data.sessions[sk];
+        if (!session) continue;
+        const prog = getProgram(data, dk);
+        for (const ex of prog.exercises) {
+          if (session[ex.id]) {
+            const sets = session[ex.id];
+            const completedSets = sets.filter(s => s.reps > 0 && s.lbs > 0);
+            if (completedSets.length > 0) {
+              const maxLbs = Math.max(...completedSets.map(s => s.lbs));
+              point[ex.id] = maxLbs;
+              if (!liftMap[ex.id]) liftMap[ex.id] = ex.name;
+            }
           }
         }
-      });
+      }
       if (Object.keys(point).length > 1) points.push(point);
     }
-    return points;
+    const LIFT_COLORS = ["#67d4f4", "#f59e0b", "#c5f467", "#a78bfa", "#34d399", "#ef4444", "#ec4899", "#8b5cf6", "#06b6d4", "#84cc16"];
+    const lifts = Object.entries(liftMap).map(([id, name], i) => ({
+      id, label: name, color: LIFT_COLORS[i % LIFT_COLORS.length],
+    }));
+    return { points, lifts };
   }, [data]);
 
   const painCount = useCallback(() => {
@@ -1034,7 +1226,6 @@ export default function App() {
     );
   }
 
-  const activeDayMeta = ALL_DAYS.find(d => d.key === activeDay);
   const isRestDay = !(data.workoutDays || DEFAULT_WORKOUT_DAYS).includes(activeDay);
   const day = isRestDay ? null : getProgram(data, activeDay);
   const session = isRestDay ? null : getSession(activeDay);
@@ -1127,7 +1318,7 @@ export default function App() {
             })}
           </div>
 
-          {/* WORKOUT / REST TOGGLE + BODY WEIGHT + DATE */}
+          {/* WORKOUT / REST TOGGLE + DATE */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 14 }}>
             {["workout", "rest"].map(type => {
               const active = type === "workout" ? !isRestDay : isRestDay;
@@ -1144,23 +1335,8 @@ export default function App() {
               );
             })}
             <div style={{ flex: 1 }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <input
-                type="number"
-                placeholder="wt"
-                value={getBodyWeight(activeDay)}
-                step="0.1"
-                onChange={e => updateBodyWeight(activeDay, Number(e.target.value) || "")}
-                style={{
-                  width: 64, background: C.surface, border: `1px solid ${C.border}`, color: C.steps,
-                  borderRadius: 6, padding: "4px 6px", fontSize: 13,
-                  fontFamily: "'JetBrains Mono',monospace", outline: "none", textAlign: "center",
-                }}
-              />
-              <span style={{ color: C.dim, fontSize: 11 }}>lbs</span>
-            </div>
             {data.startDate && (
-              <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace", minWidth: 52, textAlign: "right" }}>
+              <span style={{ color: C.dim, fontSize: 11, fontFamily: "'JetBrains Mono',monospace" }}>
                 {fmtDate(getDayDate(data.startDate, week, activeDay))}
               </span>
             )}
@@ -1168,11 +1344,13 @@ export default function App() {
 
           {isRestDay ? (
             <>
+              <MetricsSection bodyWeight={getBodyWeight(activeDay)} onBodyWeightChange={v => updateBodyWeight(activeDay, v)} metrics={getMetrics(activeDay)} onMetricsChange={v => updateMetrics(activeDay, v)} />
               <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
               <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={false} mealLibrary={data.mealLibrary} onUpdateLibrary={lib => persist({ ...data, mealLibrary: lib })} />
             </>
           ) : (
             <>
+              <MetricsSection bodyWeight={getBodyWeight(activeDay)} onBodyWeightChange={v => updateBodyWeight(activeDay, v)} metrics={getMetrics(activeDay)} onMetricsChange={v => updateMetrics(activeDay, v)} />
               <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
 
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
@@ -1189,7 +1367,7 @@ export default function App() {
               </div>
 
               {day.exercises.map(ex => (
-                <ExerciseCard key={ex.id} exercise={ex} isRehab={false}
+                <ExerciseCard key={ex.id} exercise={ex}
                   sets={session ? (session[ex.id] || buildEmptySets(ex)) : buildEmptySets(ex)}
                   onUpdate={sets => updateSet(activeDay, ex.id, sets)}
                   editMode={editMode}
@@ -1210,15 +1388,6 @@ export default function App() {
               )}
 
               <div style={{ marginTop: 20, marginBottom: 8 }}>
-                <span style={{ color: C.rehab, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>REHAB PROTOCOL</span>
-              </div>
-              {day.rehab.map(ex => (
-                <ExerciseCard key={ex.id} exercise={ex} isRehab={true} sets={null} onUpdate={() => {}}
-                  rehabDone={getRehabDone(activeDay, ex.id)}
-                  onRehabToggle={() => toggleRehab(activeDay, ex.id)} />
-              ))}
-
-              <div style={{ marginTop: 20, marginBottom: 8 }}>
                 <span style={{ color: C.warn, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>NUTRITION</span>
               </div>
               <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={true} mealLibrary={data.mealLibrary} onUpdateLibrary={lib => persist({ ...data, mealLibrary: lib })} />
@@ -1228,7 +1397,7 @@ export default function App() {
                 <div style={{ color: C.muted, fontSize: 12, lineHeight: 1.6 }}>
                   {(activeDay === "mon" || activeDay === "fri")
                     ? "Lower body day — 2 light warm-up sets before working weight on heavy compound."
-                    : "Upper body day — begin with rehab/activation exercises before pressing."}
+                    : "Upper body day — begin with activation exercises before pressing."}
                   {" "}Light exercises: 3s concentric / 3s eccentric for tendon loading.
                   {" "}Log pain flags if any discomfort in bicep or shoulder during sets.
                 </div>
@@ -1265,7 +1434,7 @@ export default function App() {
               <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 4px" }}>Main Lift Progression</h2>
               <span style={{ color: C.muted, fontSize: 12 }}>Top working weight per week</span>
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginTop: 14 }}>
-                <ProgressChart data={chartData()} />
+                <ProgressChart data={chartData().points} lifts={chartData().lifts} />
               </div>
             </>
           )}
