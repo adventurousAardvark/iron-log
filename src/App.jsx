@@ -504,9 +504,9 @@ function mealTotals(meal) {
 }
 function migrateMeal(m) {
   // Convert old flat meals to grouped format
-  if (m.items) return m;
+  if (m.items) return { ...m, serving: m.serving || 1 };
   const { id, name, serving, ...macros } = m;
-  return { id, name: name || "", items: [{ id: Date.now(), name: name || "", ...macros, serving: serving || 1 }] };
+  return { id, name: name || "", serving: 1, items: [{ id: Date.now(), name: name || "", ...macros, serving: serving || 1 }] };
 }
 
 function ItemPicker({ library, onSelect, onNewBlank, onClose, label }) {
@@ -583,6 +583,7 @@ function MealCard({ meal, onUpdate, onRemove, onSaveToLibrary, onSaveItemToLibra
   const [showItemPicker, setShowItemPicker] = useState(false);
   const items = meal.items || [];
   const t = mealTotals(meal);
+  const mealServing = meal.serving || 1;
 
   const updateItem = (itemId, field, val) => {
     onUpdate({ ...meal, items: items.map(it => it.id === itemId ? { ...it, [field]: val } : it) });
@@ -608,7 +609,7 @@ function MealCard({ meal, onUpdate, onRemove, onSaveToLibrary, onSaveItemToLibra
   return (
     <div style={{ border: `1px solid ${C.border}`, borderRadius: 10, marginBottom: 8, overflow: "hidden", background: C.bg }}>
       {/* Meal header row */}
-      <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 44px 28px 24px", gap: 4, padding: "8px 10px", alignItems: "center", cursor: "pointer" }}
+      <div style={{ display: "grid", gridTemplateColumns: "24px 1fr 52px 44px 28px 24px", gap: 4, padding: "8px 10px", alignItems: "center", cursor: "pointer" }}
         onClick={() => setOpen(!open)}>
         <span style={{ color: C.dim, fontSize: 14, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s", textAlign: "center" }}>▸</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
@@ -617,6 +618,17 @@ function MealCard({ meal, onUpdate, onRemove, onSaveToLibrary, onSaveItemToLibra
             onChange={e => onUpdate({ ...meal, name: e.target.value })} />
           <span style={{ color: C.dim, fontSize: 10, flexShrink: 0 }}>{items.length} item{items.length !== 1 ? "s" : ""}</span>
         </div>
+        <input
+          type="number"
+          placeholder="1"
+          value={mealServing}
+          step="0.25"
+          min="0.25"
+          title="Meal scale"
+          style={{ ...inp, color: C.warn, fontSize: 11 }}
+          onClick={e => e.stopPropagation()}
+          onChange={e => onUpdate({ ...meal, serving: Number(e.target.value) || 1 })}
+        />
         <span style={{ color: C.muted, fontSize: 12, fontFamily: "'JetBrains Mono',monospace", textAlign: "center" }}>
           {Math.round(t.kcal)}
         </span>
@@ -655,14 +667,14 @@ function MealCard({ meal, onUpdate, onRemove, onSaveToLibrary, onSaveItemToLibra
               <input type="number" placeholder="1" value={it.serving ?? 1} step="0.25" min="0.25" style={{ ...inp, color: C.steps, fontSize: 11 }}
                 onChange={e => updateItem(it.id, "serving", Number(e.target.value) || 1)} />
               {macroFields.map(f => {
-                const s = it.serving || 1;
+                const s = (it.serving || 1) * mealServing;
                 return (
                 <input key={f.key} type="number" placeholder="0" value={Math.round(((it[f.key] || 0) * s) * 10) / 10 || ""} style={{ ...inp, fontSize: 11 }}
                   onChange={e => updateItem(it.id, f.key, (Number(e.target.value) || 0) / s)} />
                 );
               })}
               <span style={{ color: C.muted, fontSize: 10, fontFamily: "'JetBrains Mono',monospace", textAlign: "center" }}>
-                {Math.round(calcKcal(it) * (it.serving || 1))}
+                {Math.round(calcKcal(it) * (it.serving || 1) * mealServing)}
               </span>
               <button onClick={() => onSaveItemToLibrary(it)} disabled={!it.name.trim()} title="Save item to library"
                 style={{ background: "none", border: `1px solid ${it.name.trim() ? C.warn + "44" : C.border}`, color: it.name.trim() ? C.warn : C.dim, fontSize: 9, cursor: it.name.trim() ? "pointer" : "default", borderRadius: 3, padding: "1px 0", lineHeight: 1, fontFamily: "inherit", width: "100%" }}>↑</button>
@@ -704,16 +716,16 @@ function MacroSection({ meals: rawMeals, onUpdate, isTrainingDay, mealLibrary, o
   const over = totals.kcal > goal;
 
   const addBlankMeal = () => {
-    onUpdate([...meals, { id: Date.now(), name: "", items: [{ id: Date.now() + 1, name: "", protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, serving: 1 }] }]);
+    onUpdate([...meals, { id: Date.now(), name: "", serving: 1, items: [{ id: Date.now() + 1, name: "", protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, serving: 1 }] }]);
     setShowPicker(false);
   };
   const addFromLibrary = (libEntry) => {
     if (libEntry.items) {
       // It's a saved meal — add as a full meal group
-      onUpdate([...meals, { ...libEntry, id: Date.now(), items: libEntry.items.map(it => ({ ...it, id: Date.now() + Math.random() })) }]);
+      onUpdate([...meals, { ...libEntry, id: Date.now(), serving: 1, items: libEntry.items.map(it => ({ ...it, id: Date.now() + Math.random() })) }]);
     } else {
       // It's a single item — wrap it in a meal
-      onUpdate([...meals, { id: Date.now(), name: libEntry.name, items: [{ ...libEntry, id: Date.now() + 1, serving: 1 }] }]);
+      onUpdate([...meals, { id: Date.now(), name: libEntry.name, serving: 1, items: [{ ...libEntry, id: Date.now() + 1, serving: 1 }] }]);
     }
     setShowPicker(false);
   };
@@ -915,7 +927,7 @@ function CaloriesChart({ data: appData }) {
   for (let w = 1; w <= (appData.weekNum || 1); w++) {
     for (const { key: dk } of ALL_DAYS) {
       const meals = (appData.meals || {})[`meals_${dk}_w${w}`] || [];
-      const kcal = meals.reduce((sum, m) => sum + Math.round(calcKcal(m) * (m.serving || 1)), 0);
+      const kcal = meals.reduce((sum, m) => sum + Math.round(mealTotals(migrateMeal(m)).kcal), 0);
       if (kcal > 0) {
         const date = appData.startDate ? getDayDate(appData.startDate, w, dk) : null;
         points.push({ label: date ? fmtDate(date) : `W${w} ${dk.toUpperCase()}`, kcal });
@@ -1444,7 +1456,7 @@ export default function App() {
               const sk = sessionKey(dk, w);
               const steps = (data.steps[`steps_${dk}_w${w}`] || 0);
               const meals = (data.meals || {})[`meals_${dk}_w${w}`] || [];
-              const kcal = meals.reduce((sum, m) => sum + Math.round(calcKcal(m) * (m.serving || 1)), 0);
+              const kcal = meals.reduce((sum, m) => sum + Math.round(mealTotals(migrateMeal(m)).kcal), 0);
               const bw = (data.bodyWeight || {})[`bw_${dk}_w${w}`] || null;
               const date = data.startDate ? getDayDate(data.startDate, w, dk) : null;
               return { label, dk, session: data.sessions[sk], steps, kcal, bw, date };
