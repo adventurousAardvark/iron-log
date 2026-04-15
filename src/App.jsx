@@ -5,45 +5,6 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
    PROGRAM DEFINITION
    ════════════════════════════════════════════ */
 
-const PROGRAM = {
-  mon: {
-    label: "MON", title: "Heavy Squat · Light Deadlift", exercises: [
-      { id: "squat_h", name: "Barbell Squat", heavy: true, sets: 4, reps: "5-6", startLbs: 85, note: "Heavy. Deload 10% if form breaks." },
-      { id: "rdl_l", name: "DB Romanian Deadlift", heavy: false, sets: 3, reps: "8-10", startLbs: 45, note: "Light. Tempo 3/0/3/0. Hip hinge." },
-      { id: "leg_press", name: "Leg Press", heavy: false, sets: 3, reps: "8-10", startLbs: 180, note: "Foot placement mid-high." },
-      { id: "calf_raise", name: "Standing Calf Raise", heavy: false, sets: 4, reps: "12-15", startLbs: 100, note: "Full ROM, pause at top." },
-      { id: "plank_m", name: "Weighted Plank", heavy: false, sets: 3, reps: "30-45s", startLbs: 0, note: "Add plate when able." },
-    ],
-  },
-  wed: {
-    label: "WED", title: "Heavy DB Press · Light Push", exercises: [
-      { id: "db_press_h", name: "DB Press (Flat)", heavy: true, sets: 3, reps: "5-6", startLbs: 50, note: "Heavy. Bench substitute. Retract scapulae." },
-      { id: "incline_l", name: "Incline DB Press", heavy: false, sets: 3, reps: "8-10", startLbs: 30, note: "Light. Tempo 3/0/3/0. 30° incline." },
-      { id: "tri_push_l", name: "Tricep Pushdown", heavy: false, sets: 3, reps: "10-12", startLbs: 40, note: "Light. Tempo 3/0/3/0. Rope." },
-      { id: "lat_raise", name: "DB Lateral Raise", heavy: false, sets: 3, reps: "12-15", startLbs: 15, note: "Controlled tempo." },
-      { id: "cable_fly", name: "Cable Fly", heavy: false, sets: 3, reps: "10-12", startLbs: 25, note: "Slight forward lean." },
-    ],
-  },
-  fri: {
-    label: "FRI", title: "Heavy Deadlift · Light Squat", exercises: [
-      { id: "deadlift_h", name: "Barbell Deadlift", heavy: true, sets: 3, reps: "5-6", startLbs: 135, note: "Heavy. Mixed grip or straps." },
-      { id: "squat_l", name: "Barbell Squat", heavy: false, sets: 3, reps: "8-10", startLbs: 60, note: "Light. Tempo 3/0/3/0. Pattern work." },
-      { id: "leg_curl", name: "Lying Leg Curl", heavy: false, sets: 3, reps: "10-12", startLbs: 50, note: "Slow eccentric 3s." },
-      { id: "hip_thrust", name: "Barbell Hip Thrust", heavy: false, sets: 3, reps: "8-10", startLbs: 95, note: "Pause at top." },
-      { id: "hang_knee", name: "Hanging Knee Raise (Straps)", heavy: false, sets: 3, reps: "10-15", startLbs: 0, note: "Ab straps — no bicep load." },
-    ],
-  },
-  sat: {
-    label: "SAT", title: "Heavy Incline · Light DB Press · Pull", exercises: [
-      { id: "incline_h", name: "Incline DB Press", heavy: true, sets: 3, reps: "6-8", startLbs: 40, note: "Heavy. 30° incline." },
-      { id: "db_press_l", name: "DB Press (Flat)", heavy: false, sets: 3, reps: "8-10", startLbs: 35, note: "Light. Tempo 3/0/3/0." },
-      { id: "db_row", name: "DB Row (Neutral Grip)", heavy: false, sets: 3, reps: "8-10", startLbs: 45, note: "Capped at pain-free weight." },
-      { id: "cable_row", name: "Seated Cable Row (Wide)", heavy: false, sets: 3, reps: "10-12", startLbs: 60, note: "Wide grip minimizes bicep." },
-      { id: "face_pull", name: "Cable Face Pull", heavy: false, sets: 3, reps: "15-20", startLbs: 20, note: "External rotation at top." },
-      { id: "rear_delt", name: "Reverse Pec Deck", heavy: false, sets: 3, reps: "12-15", startLbs: 40, note: "Shoulders down and back." },
-    ],
-  },
-};
 
 const DAY_KEYS = ["mon", "wed", "fri", "sat"];
 const ALL_DAYS = [
@@ -165,6 +126,7 @@ const EXERCISE_DB = [
    ════════════════════════════════════════════ */
 
 const API_URL = "/api/data";
+const LIBRARY_URL = "/api/library";
 
 async function loadData() {
   try {
@@ -172,7 +134,6 @@ async function loadData() {
     return await res.json();
   } catch (e) {
     console.error("load err (server down?):", e);
-    // Fallback to localStorage if server unavailable
     try {
       const raw = localStorage.getItem("iron-log-data");
       return raw ? JSON.parse(raw) : null;
@@ -188,6 +149,38 @@ function saveData(d) {
   }).catch(e => console.error("save err:", e));
 }
 
+async function loadLibrary() {
+  try {
+    const res = await fetch(LIBRARY_URL);
+    return await res.json();
+  } catch { return null; }
+}
+
+function saveLibrary(lib) {
+  fetch(LIBRARY_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(lib),
+  }).catch(e => console.error("library save err:", e));
+}
+
+const PROGRAM_URL = "/api/program";
+
+async function loadProgram() {
+  try {
+    const res = await fetch(PROGRAM_URL);
+    return await res.json();
+  } catch { return null; }
+}
+
+function saveProgram(prog) {
+  fetch(PROGRAM_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(prog),
+  }).catch(e => console.error("program save err:", e));
+}
+
 function exportData(d) {
   const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -201,12 +194,11 @@ function exportData(d) {
 const DEFAULT_WORKOUT_DAYS = ["mon", "wed", "fri", "sat"];
 
 function emptyState() {
-  return { sessions: {}, steps: {}, meals: {}, weekNum: 1, program: {}, workoutDays: DEFAULT_WORKOUT_DAYS, mealLibrary: [], bodyWeight: {}, metrics: {}, startDate: getThisMonday().toISOString() };
+  return { sessions: {}, steps: {}, meals: {}, weekNum: 1, workoutDays: DEFAULT_WORKOUT_DAYS, bodyWeight: {}, metrics: {}, startDate: getThisMonday().toISOString() };
 }
 
-function getProgram(data, dayKey) {
-  if (data && data.program && data.program[dayKey]) return data.program[dayKey];
-  if (PROGRAM[dayKey]) return PROGRAM[dayKey];
+function getProgram(program, dayKey) {
+  if (program && program[dayKey]) return program[dayKey];
   return { title: "", exercises: [] };
 }
 
@@ -218,7 +210,7 @@ function sessionKey(dayKey, week) { return `${dayKey}_w${week}`; }
 
 function buildEmptySets(exercise) {
   return Array.from({ length: exercise.sets }, () => ({
-    lbs: exercise.startLbs, reps: 0, rpe: null, painBicep: false, painShoulder: false
+    lbs: exercise.startLbs, reps: 0
   }));
 }
 
@@ -237,17 +229,6 @@ const C = {
    COMPONENTS
    ════════════════════════════════════════════ */
 
-function PainToggle({ active, label, color, onClick }) {
-  return (
-    <button onClick={onClick} style={{
-      background: active ? color + "22" : "transparent",
-      border: `1px solid ${active ? color : C.border}`,
-      color: active ? color : C.dim, borderRadius: 6, padding: "2px 8px", fontSize: 11,
-      cursor: "pointer", fontFamily: "inherit", transition: "all .15s", whiteSpace: "nowrap",
-    }}>{label}</button>
-  );
-}
-
 function SetRow({ set, idx, onChange }) {
   const inp = {
     background: C.surface, border: `1px solid ${C.border}`, color: C.text, borderRadius: 6,
@@ -256,21 +237,12 @@ function SetRow({ set, idx, onChange }) {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr 76px auto auto", gap: 8, alignItems: "center", padding: "5px 0" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr", gap: 8, alignItems: "center", padding: "5px 0" }}>
       <span style={{ color: C.dim, fontSize: 12, fontFamily: "'JetBrains Mono',monospace" }}>S{idx + 1}</span>
       <input type="number" placeholder="lbs" value={set.lbs || ""} style={inp}
         onChange={e => onChange({ ...set, lbs: Number(e.target.value) })} />
       <input type="number" placeholder="reps" value={set.reps || ""} style={inp}
         onChange={e => onChange({ ...set, reps: Number(e.target.value) })} />
-      <select value={set.rpe || ""} style={{ ...inp, padding: "6px 2px", cursor: "pointer", appearance: "auto" }}
-        onChange={e => onChange({ ...set, rpe: e.target.value ? Number(e.target.value) : null })}>
-        <option value="">RPE</option>
-        {[6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10].map(v => <option key={v} value={v}>{v}</option>)}
-      </select>
-      <PainToggle active={set.painBicep} label="Bicep" color={C.danger}
-        onClick={() => onChange({ ...set, painBicep: !set.painBicep })} />
-      <PainToggle active={set.painShoulder} label="Shldr" color={C.warn}
-        onClick={() => onChange({ ...set, painShoulder: !set.painShoulder })} />
     </div>
   );
 }
@@ -278,7 +250,6 @@ function SetRow({ set, idx, onChange }) {
 function ExerciseCard({ exercise, sets, onUpdate, editMode, onRemove, onAddSet, onRemoveSet }) {
   const [open, setOpen] = useState(false);
   const hasData = sets && sets.some(s => s.reps > 0);
-  const hasPain = sets && sets.some(s => s.painBicep || s.painShoulder);
   const tagColor = exercise.heavy ? C.accent : C.muted;
   const tagLabel = exercise.heavy ? "HEAVY" : "LIGHT · 3/0/3/0";
   const currentSets = sets || [];
@@ -286,7 +257,7 @@ function ExerciseCard({ exercise, sets, onUpdate, editMode, onRemove, onAddSet, 
   return (
     <div style={{
       background: C.surface,
-      border: `1px solid ${hasPain ? C.danger + "66" : C.border}`,
+      border: `1px solid ${C.border}`,
       borderRadius: 10, marginBottom: 8, overflow: "hidden", transition: "border-color .2s",
     }}>
       <div onClick={() => setOpen(!open)} style={{
@@ -321,10 +292,10 @@ function ExerciseCard({ exercise, sets, onUpdate, editMode, onRemove, onAddSet, 
           {currentSets.length > 0 && (
             <div>
               <div style={{
-                display: "grid", gridTemplateColumns: "32px 1fr 1fr 76px auto auto", gap: 8, padding: "4px 0",
+                display: "grid", gridTemplateColumns: "32px 1fr 1fr", gap: 8, padding: "4px 0",
                 color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1, textTransform: "uppercase",
               }}>
-                <span></span><span>LBS</span><span>REPS</span><span>RPE</span><span>PAIN</span><span></span>
+                <span></span><span>LBS</span><span>REPS</span>
               </div>
               {currentSets.map((s, i) => (
                 <SetRow key={i} set={s} idx={i} onChange={newSet => {
@@ -523,11 +494,13 @@ function itemMacros(item) {
 }
 function mealTotals(meal) {
   const items = meal.items || [];
-  if (items.length === 0) return itemMacros(meal); // legacy flat meal
-  return items.reduce((acc, it) => {
+  const ms = meal.serving || 1;
+  if (items.length === 0) { const m = itemMacros(meal); return { protein: m.protein * ms, carbs: m.carbs * ms, fiber: m.fiber * ms, fat: m.fat * ms, satFat: m.satFat * ms, kcal: m.kcal * ms }; }
+  const base = items.reduce((acc, it) => {
     const m = itemMacros(it);
     return { protein: acc.protein + m.protein, carbs: acc.carbs + m.carbs, fiber: acc.fiber + m.fiber, fat: acc.fat + m.fat, satFat: acc.satFat + m.satFat, kcal: acc.kcal + m.kcal };
   }, { protein: 0, carbs: 0, fiber: 0, fat: 0, satFat: 0, kcal: 0 });
+  return { protein: base.protein * ms, carbs: base.carbs * ms, fiber: base.fiber * ms, fat: base.fat * ms, satFat: base.satFat * ms, kcal: base.kcal * ms };
 }
 function migrateMeal(m) {
   // Convert old flat meals to grouped format
@@ -1005,6 +978,8 @@ function BodyWeightChart({ data: appData }) {
 
 export default function App() {
   const [data, setData] = useState(null);
+  const [mealLibrary, setMealLibrary] = useState([]);
+  const [program, setProgram] = useState({});
   const [activeDay, setActiveDay] = useState("mon");
   const [view, setView] = useState("workout");
   const [week, setWeek] = useState(1);
@@ -1012,18 +987,28 @@ export default function App() {
   const [showPicker, setShowPicker] = useState(false);
   const [progressTab, setProgressTab] = useState("lifts");
   const saveTimeout = useRef(null);
+  const libSaveTimeout = useRef(null);
+  const progSaveTimeout = useRef(null);
 
   useEffect(() => {
-    loadData().then(saved => {
-      const d = saved || emptyState();
-      if (!d.program) d.program = {};
+    Promise.all([loadData(), loadLibrary(), loadProgram()]).then(([saved, lib, prog]) => {
+      const d = (saved && saved.sessions) ? saved : emptyState();
       if (!d.workoutDays) d.workoutDays = DEFAULT_WORKOUT_DAYS;
-      if (!d.mealLibrary) d.mealLibrary = [];
       if (!d.bodyWeight) d.bodyWeight = {};
       if (!d.metrics) d.metrics = {};
       if (!d.startDate) d.startDate = getThisMonday().toISOString();
+      // Migrate: if library file is empty but data has mealLibrary, seed from data
+      const library = Array.isArray(lib) && lib.length > 0 ? lib : (d.mealLibrary || []);
+      delete d.mealLibrary;
+      // Migrate: if program file is empty but data has program, seed from data
+      const programData = (prog && Object.keys(prog).length > 0) ? prog : (d.program || {});
+      delete d.program;
       setData(d);
+      setMealLibrary(library);
+      setProgram(programData);
       setWeek(d.weekNum || 1);
+      if ((!lib || lib.length === 0) && library.length > 0) saveLibrary(library);
+      if ((!prog || Object.keys(prog).length === 0) && Object.keys(programData).length > 0) saveProgram(programData);
     });
   }, []);
 
@@ -1033,16 +1018,28 @@ export default function App() {
     saveTimeout.current = setTimeout(() => saveData(newData), 400);
   }, []);
 
+  const updateLibrary = useCallback((lib) => {
+    setMealLibrary(lib);
+    if (libSaveTimeout.current) clearTimeout(libSaveTimeout.current);
+    libSaveTimeout.current = setTimeout(() => saveLibrary(lib), 400);
+  }, []);
+
+  const updateProgram = useCallback((prog) => {
+    setProgram(prog);
+    if (progSaveTimeout.current) clearTimeout(progSaveTimeout.current);
+    progSaveTimeout.current = setTimeout(() => saveProgram(prog), 400);
+  }, []);
+
   const getSession = useCallback((dayKey) => {
     if (!data) return null;
     const sk = sessionKey(dayKey, week);
     if (data.sessions[sk]) return data.sessions[sk];
-    const prog = getProgram(data, dayKey);
+    const prog = getProgram(program,dayKey);
     if (!prog) return {};
     const session = {};
     prog.exercises.forEach(ex => { session[ex.id] = buildEmptySets(ex); });
     return session;
-  }, [data, week]);
+  }, [data, week, program]);
 
   const updateSet = useCallback((dayKey, exId, sets) => {
     const sk = sessionKey(dayKey, week);
@@ -1070,31 +1067,33 @@ export default function App() {
   }, [data, week, persist]);
 
   const handleAddExercise = useCallback((dayKey, ex) => {
-    const prog = getProgram(data, dayKey);
+    const prog = getProgram(program, dayKey);
     const newEx = { id: `custom_${Date.now()}_${Math.random().toString(36).slice(2)}`, name: ex.name, heavy: false, sets: 3, reps: "8-10", startLbs: 0, note: "" };
     const updated = { ...prog, exercises: [...prog.exercises, newEx] };
-    persist({ ...data, program: { ...(data.program || {}), [dayKey]: updated } });
-  }, [data, persist]);
+    updateProgram({ ...program, [dayKey]: updated });
+  }, [program, updateProgram]);
 
   const handleRemoveExercise = useCallback((dayKey, exId) => {
-    const prog = getProgram(data, dayKey);
+    const prog = getProgram(program, dayKey);
     const updated = { ...prog, exercises: prog.exercises.filter(e => e.id !== exId) };
+    updateProgram({ ...program, [dayKey]: updated });
     const sk = sessionKey(dayKey, week);
     const currentSession = data.sessions[sk] ? { ...data.sessions[sk] } : {};
     delete currentSession[exId];
-    persist({ ...data, program: { ...(data.program || {}), [dayKey]: updated }, sessions: { ...data.sessions, [sk]: currentSession } });
-  }, [data, week, persist]);
+    persist({ ...data, sessions: { ...data.sessions, [sk]: currentSession } });
+  }, [data, program, week, persist, updateProgram]);
 
   const handleAddSet = useCallback((dayKey, exId) => {
     const sk = sessionKey(dayKey, week);
     const session = { ...getSession(dayKey) };
     const sets = session[exId] || [];
     const last = sets[sets.length - 1];
-    session[exId] = [...sets, { lbs: last ? last.lbs : 0, reps: 0, rpe: null, painBicep: false, painShoulder: false }];
-    const prog = getProgram(data, dayKey);
+    session[exId] = [...sets, { lbs: last ? last.lbs : 0, reps: 0 }];
+    const prog = getProgram(program, dayKey);
     const updated = { ...prog, exercises: prog.exercises.map(e => e.id === exId ? { ...e, sets: session[exId].length } : e) };
-    persist({ ...data, sessions: { ...data.sessions, [sk]: session }, program: { ...(data.program || {}), [dayKey]: updated } });
-  }, [data, week, getSession, persist]);
+    updateProgram({ ...program, [dayKey]: updated });
+    persist({ ...data, sessions: { ...data.sessions, [sk]: session } });
+  }, [data, program, week, getSession, persist, updateProgram]);
 
   const handleRemoveSet = useCallback((dayKey, exId) => {
     const sk = sessionKey(dayKey, week);
@@ -1102,10 +1101,11 @@ export default function App() {
     const sets = session[exId] || [];
     if (sets.length <= 1) return;
     session[exId] = sets.slice(0, -1);
-    const prog = getProgram(data, dayKey);
+    const prog = getProgram(program, dayKey);
     const updated = { ...prog, exercises: prog.exercises.map(e => e.id === exId ? { ...e, sets: session[exId].length } : e) };
-    persist({ ...data, sessions: { ...data.sessions, [sk]: session }, program: { ...(data.program || {}), [dayKey]: updated } });
-  }, [data, week, getSession, persist]);
+    updateProgram({ ...program, [dayKey]: updated });
+    persist({ ...data, sessions: { ...data.sessions, [sk]: session } });
+  }, [data, program, week, getSession, persist, updateProgram]);
 
   const toggleWorkoutDay = useCallback((dayKey) => {
     const current = data.workoutDays || DEFAULT_WORKOUT_DAYS;
@@ -1159,6 +1159,15 @@ export default function App() {
         const text = await file.text();
         const imported = JSON.parse(text);
         if (imported.sessions) {
+          // Extract library and program from backup if present
+          if (imported.mealLibrary) {
+            updateLibrary(imported.mealLibrary);
+            delete imported.mealLibrary;
+          }
+          if (imported.program) {
+            updateProgram(imported.program);
+            delete imported.program;
+          }
           persist(imported);
           setWeek(imported.weekNum || 1);
           alert("Data imported successfully!");
@@ -1180,7 +1189,7 @@ export default function App() {
         const sk = sessionKey(dk, w);
         const session = data.sessions[sk];
         if (!session) continue;
-        const prog = getProgram(data, dk);
+        const prog = getProgram(program,dk);
         for (const ex of prog.exercises) {
           if (session[ex.id]) {
             const sets = session[ex.id];
@@ -1202,21 +1211,6 @@ export default function App() {
     return { points, lifts };
   }, [data]);
 
-  const painCount = useCallback(() => {
-    if (!data) return { bicep: 0, shoulder: 0 };
-    let b = 0, s = 0;
-    DAY_KEYS.forEach(dk => {
-      const sk = sessionKey(dk, week);
-      const session = data.sessions[sk];
-      if (session) Object.values(session).forEach(sets => {
-        if (Array.isArray(sets)) sets.forEach(set => {
-          if (set.painBicep) b++;
-          if (set.painShoulder) s++;
-        });
-      });
-    });
-    return { bicep: b, shoulder: s };
-  }, [data, week]);
 
   if (!data) {
     return (
@@ -1227,10 +1221,8 @@ export default function App() {
   }
 
   const isRestDay = !(data.workoutDays || DEFAULT_WORKOUT_DAYS).includes(activeDay);
-  const day = isRestDay ? null : getProgram(data, activeDay);
+  const day = isRestDay ? null : getProgram(program,activeDay);
   const session = isRestDay ? null : getSession(activeDay);
-  const pain = painCount();
-
   return (
     <div style={{
       minHeight: "100vh", background: C.bg, color: C.text,
@@ -1241,10 +1233,9 @@ export default function App() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: -0.5, color: C.accent }}>IRON LOG</h1>
-            <span style={{ color: C.muted, fontSize: 12 }}>4-Day Heavy/Light · Compound Focus · 3/0/3/0 Tendon Tempo</span>
           </div>
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-            <button onClick={() => exportData(data)} title="Export backup" style={{
+            <button onClick={() => exportData({ ...data, program, mealLibrary })} title="Export backup" style={{
               background: C.surface, border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6,
               padding: "4px 10px", fontSize: 11, cursor: "pointer", fontFamily: "inherit",
             }}>↓ Export</button>
@@ -1254,16 +1245,6 @@ export default function App() {
             }}>↑ Import</button>
           </div>
         </div>
-
-        {/* PAIN BADGES */}
-        {(pain.bicep > 0 || pain.shoulder > 0) && (
-          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-            {pain.bicep > 0 && <span style={{ background: C.danger + "22", color: C.danger, fontSize: 10,
-              fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>⚠ Bicep pain ×{pain.bicep} this week</span>}
-            {pain.shoulder > 0 && <span style={{ background: C.warn + "22", color: C.warn, fontSize: 10,
-              fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>⚠ Shoulder pain ×{pain.shoulder} this week</span>}
-          </div>
-        )}
 
         {/* WEEK NAV */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 24, paddingBottom: 14 }}>
@@ -1346,7 +1327,7 @@ export default function App() {
             <>
               <MetricsSection bodyWeight={getBodyWeight(activeDay)} onBodyWeightChange={v => updateBodyWeight(activeDay, v)} metrics={getMetrics(activeDay)} onMetricsChange={v => updateMetrics(activeDay, v)} />
               <StepTracker steps={getSteps(activeDay)} onUpdate={v => updateSteps(activeDay, v)} />
-              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={false} mealLibrary={data.mealLibrary} onUpdateLibrary={lib => persist({ ...data, mealLibrary: lib })} />
+              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={false} mealLibrary={mealLibrary} onUpdateLibrary={updateLibrary} />
             </>
           ) : (
             <>
@@ -1390,7 +1371,7 @@ export default function App() {
               <div style={{ marginTop: 20, marginBottom: 8 }}>
                 <span style={{ color: C.warn, fontSize: 10, fontWeight: 600, letterSpacing: 1.5 }}>NUTRITION</span>
               </div>
-              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={true} mealLibrary={data.mealLibrary} onUpdateLibrary={lib => persist({ ...data, mealLibrary: lib })} />
+              <MacroSection meals={getMeals(activeDay)} onUpdate={v => updateMeals(activeDay, v)} isTrainingDay={true} mealLibrary={mealLibrary} onUpdateLibrary={updateLibrary} />
 
               <div style={{ marginTop: 8, padding: 14, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }}>
                 <div style={{ color: C.dim, fontSize: 10, fontWeight: 600, letterSpacing: 1.5, marginBottom: 6 }}>SESSION NOTES</div>
@@ -1399,7 +1380,6 @@ export default function App() {
                     ? "Lower body day — 2 light warm-up sets before working weight on heavy compound."
                     : "Upper body day — begin with activation exercises before pressing."}
                   {" "}Light exercises: 3s concentric / 3s eccentric for tendon loading.
-                  {" "}Log pain flags if any discomfort in bicep or shoulder during sets.
                 </div>
               </div>
             </>
@@ -1417,7 +1397,6 @@ export default function App() {
               { k: "calories", l: "Calories" },
               { k: "bodyweight", l: "Body Weight" },
               { k: "history", l: "History" },
-              { k: "pain", l: "Pain" },
             ].map(t => (
               <button key={t.k} onClick={() => setProgressTab(t.k)} style={{
                 flex: "0 0 auto", padding: "6px 14px", borderRadius: 20, fontSize: 12, fontWeight: 600,
@@ -1510,34 +1489,6 @@ export default function App() {
 
           </>)}
 
-          {progressTab === "pain" && (
-            <>
-              <h2 style={{ fontSize: 15, fontWeight: 600, margin: "0 0 12px" }}>Pain Flag Summary — Week {week}</h2>
-              <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ color: C.danger, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{pain.bicep}</div>
-                    <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Bicep flags</div>
-                  </div>
-                  <div style={{ textAlign: "center" }}>
-                    <div style={{ color: C.warn, fontSize: 30, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>{pain.shoulder}</div>
-                    <div style={{ color: C.muted, fontSize: 11, marginTop: 4 }}>Shoulder flags</div>
-                  </div>
-                </div>
-                {(pain.bicep > 3 || pain.shoulder > 3) && (
-                  <div style={{ marginTop: 14, padding: 10, background: C.danger + "11", borderRadius: 8,
-                    color: C.danger, fontSize: 12, textAlign: "center" }}>
-                    Multiple pain flags detected — bring this up in your next chat for adjustments
-                  </div>
-                )}
-                {pain.bicep === 0 && pain.shoulder === 0 && (
-                  <div style={{ marginTop: 10, color: C.success, fontSize: 12, textAlign: "center" }}>
-                    No pain flags this week ✓
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
       )}
     </div>
